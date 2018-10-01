@@ -226,7 +226,6 @@ def learn(env, policy_fn, *,
         obs = []
         k = 1.0
         G_t_inv = [k * np.eye(get_pol_weights_num)]
-        compatible_features = []
         # from tqdm import tqdm
         # for t in tqdm(itertools.count(), ascii=True):
         for t in itertools.count():
