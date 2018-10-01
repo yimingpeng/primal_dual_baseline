@@ -11,17 +11,28 @@ import itertools
 import collections
 
 
-def traj_segment_generator(pi, env, horizon, stochastic):
+def traj_segment_generator(pi, env, horizon,
+                                     vf_lossandgrad,
+                                     vf_adam,
+                                     pol_lossandgrad,
+                                     pol_adam,
+                                     compute_v_pred,
+                                     get_pol_weights_num,
+                                     get_G_t_inv,
+                                     gamma,
+                                     cur_lrmult,
+                                     optim_stepsize,
+                                     stochastic):
     global timesteps_so_far
     t = 0
-    ac = env.action_space.sample()  # not used, just so we have the datatype
-    new = True  # marks if we're on first timestep of an episode
+    ac = env.action_space.sample() # not used, just so we have the datatype
+    new = True # marks if we're on first timestep of an episode
     ob = env.reset()
 
-    cur_ep_ret = 0  # return in current episode
-    cur_ep_len = 0  # len of current episode
-    ep_rets = []  # returns of completed episodes in this segment
-    ep_lens = []  # lengths of ...
+    cur_ep_ret = 0 # return in current episode
+    cur_ep_len = 0 # len of current episode
+    ep_rets = [] # returns of completed episodes in this segment
+    ep_lens = [] # lengths of ...
 
     # Initialize history arrays
     obs = np.array([ob for _ in range(horizon)])
@@ -31,6 +42,8 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     acs = np.array([ac for _ in range(horizon)])
     prevacs = acs.copy()
 
+    k = 1.0
+    G_t_inv = [k * np.eye(get_pol_weights_num)]
     while True:
         if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
             result_record()
@@ -40,9 +53,9 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         # before returning segment [0, T-1] so we get the correct
         # terminal value
         if t > 0 and t % horizon == 0:
-            yield {"ob": obs, "rew": rews, "vpred": vpreds, "new": news,
-                   "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new),
-                   "ep_rets": ep_rets, "ep_lens": ep_lens}
+            yield {"ob" : obs, "rew" : rews, "vpred" : vpreds, "new" : news,
+                    "ac" : acs, "prevac" : prevacs, "nextvpred": vpred * (1 - new),
+                    "ep_rets" : ep_rets, "ep_lens" : ep_lens}
             # Be careful!!! if you change the downstream algorithm to aggregate
             # several of these batches, then be sure to do a deepcopy
             ep_rets = []
@@ -55,20 +68,37 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         prevacs[i] = prevac
         if env.spec._env_name == "LunarLanderContinuous":
             ac = np.clip(ac, -1.0, 1.0)
-        ob, rew, new, _ = env.step(ac)
+        next_ob, rew, new, _ = env.step(ac)
+        # Compute v target and TD
+        v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
+        adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
+
+        alpha = optim_stepsize * cur_lrmult
+
+        G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0], np.array([alpha]))
+        # Update V and Update Policy
+        vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
+                                       cur_lrmult)
+        vf_adam.update(vf_g, optim_stepsize * cur_lrmult)
+        pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
+                                          cur_lrmult)
+        pol_adam.update(G_t_inv[0].dot(pol_g), optim_stepsize * 0.1 * cur_lrmult)
+
         rews[i] = rew
 
         cur_ep_ret += rew
         cur_ep_len += 1
-        timesteps_so_far += 1
+        timesteps_so_far+=1
+        ob = next_ob
         if new:
+            print(
+                "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
             ep_rets.append(cur_ep_ret)
             ep_lens.append(cur_ep_len)
             cur_ep_ret = 0
             cur_ep_len = 0
             ob = env.reset()
         t += 1
-
 
 def result_record():
     global lenbuffer, rewbuffer, iters_so_far, timesteps_so_far, \
@@ -181,6 +211,20 @@ def learn(env, policy_fn, *,
     U.initialize()
     # Prepare for rollouts
     # ----------------------------------------
+    global cur_lrmult
+    cur_lrmult = 1.0
+    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch,
+                                     vf_lossandgrad,
+                                     vf_adam,
+                                     pol_lossandgrad,
+                                     pol_adam,
+                                     compute_v_pred,
+                                     get_pol_weights_num,
+                                     get_G_t_inv,
+                                     gamma,
+                                     cur_lrmult * optim_stepsize * 0.1,
+                                     optim_stepsize,
+                                     stochastic=True)
 
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer, best_fitness
@@ -216,58 +260,15 @@ def learn(env, policy_fn, *,
 
         logger.log("********** Episode %i ************" % episodes_so_far)
 
-        ob = env.reset()
-        # episode = []
-        cur_ep_ret = 0  # return in current episode
-        cur_ep_len = 0  # len of current episode
-        ep_rets = []  # returns of completed episodes in this segment
-        ep_lens = []  # lengths of ...
+        seg = seg_gen.__next__()
+        lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
+        listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
+        lens, rews = map(flatten_lists, zip(*listoflrpairs))
+        lenbuffer.extend(lens)
+        rewbuffer.extend(rews)
 
-        obs = []
-        k = 1.0
-        G_t_inv = [k * np.eye(get_pol_weights_num)]
-        # from tqdm import tqdm
-        # for t in tqdm(itertools.count(), ascii=True):
-        for t in itertools.count():
-            ac, vpred = pi.act(stochastic = True, ob = ob)
-
-            obs.append(ob)
-            next_ob, rew, done, _ = env.step(ac)
-            # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
-            cur_ep_ret += rew
-            cur_ep_len += 1
-            timesteps_so_far += 1
-
-            # Compute v target and TD
-            v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
-            adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
-            alpha = optim_stepsize * cur_lrmult
-
-            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0], np.array([alpha]))
-
-            # Update V and Update Policy
-            vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
-                                           cur_lrmult)
-            vf_adam.update(vf_g, alpha)
-            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
-                                              cur_lrmult)
-            pol_adam.update(G_t_inv[0].dot(pol_g), optim_stepsize * 0.1 * cur_lrmult)
-            ob = next_ob
-            # print("{}-{}".format(t,rew))
-            if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
-                result_record()
-            if done:
-                print(
-                    "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
-                ep_rets.append(cur_ep_ret)  # returns of completed episodes in this segment
-                ep_lens.append(cur_ep_len)  # lengths of ..
-                rewbuffer.extend(ep_rets)
-                lenbuffer.extend(ep_lens)
-
-                if hasattr(pi, "ob_rms"): pi.ob_rms.update(np.array(obs))  # update running mean/std for normalization
-                iters_so_far += 1
-                episodes_so_far += 1
-                break
+        iters_so_far += 1
+        episodes_so_far += 1
 
 
 def flatten_lists(listoflists):
