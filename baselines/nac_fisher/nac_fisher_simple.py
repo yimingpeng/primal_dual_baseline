@@ -268,7 +268,7 @@ def learn(env, policy_fn, *,
         rewbuffer.extend(rews)
 
         iters_so_far += 1
-        episodes_so_far += 1
+        episodes_so_far += len(lens)
 
 
 def flatten_lists(listoflists):
