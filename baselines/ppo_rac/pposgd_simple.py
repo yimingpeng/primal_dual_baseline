@@ -9,7 +9,16 @@ from mpi4py import MPI
 from collections import deque
 
 
-def traj_segment_generator(pi, env, horizon, stochastic):
+def traj_segment_generator(pi, env, horizon,
+                                     vf_lossandgrad,
+                                     vf_adam,
+                                     pol_lossandgrad,
+                                     pol_adam,
+                                     compute_v_pred,
+                                     gamma,
+                                     cur_lrmult,
+                                     optim_stepsize,
+                                     stochastic):
     global timesteps_so_far
     t = 0
     ac = env.action_space.sample() # not used, just so we have the datatype
@@ -53,13 +62,28 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         prevacs[i] = prevac
         if env.spec._env_name == "LunarLanderContinuous":
             ac = np.clip(ac, -1.0, 1.0)
-        ob, rew, new, _ = env.step(ac)
+        next_ob, rew, new, _ = env.step(ac)
+        # Compute v target and TD
+        v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
+        adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
+
+        # Update V and Update Policy
+        vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
+                                       cur_lrmult)
+        vf_adam.update(vf_g, optim_stepsize * cur_lrmult)
+        pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
+                                          cur_lrmult)
+        pol_adam.update(pol_g, optim_stepsize * 0.1 * cur_lrmult)
+
         rews[i] = rew
 
         cur_ep_ret += rew
         cur_ep_len += 1
         timesteps_so_far+=1
+        ob = next_ob
         if new:
+            print(
+                "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
             ep_rets.append(cur_ep_ret)
             ep_lens.append(cur_ep_len)
             cur_ep_ret = 0
@@ -122,7 +146,11 @@ def learn(env, policy_fn, *,
     atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
 
+    td_v_target = tf.placeholder(dtype = tf.float32, shape = [1, 1])  # V target for RAC
+
     lrmult = tf.placeholder(name='lrmult', dtype=tf.float32, shape=[]) # learning rate multiplier, updated with schedule
+    adv = tf.placeholder(dtype = tf.float32, shape = [1, 1]) # Advantage function for RAC
+
     clip_param = clip_param * lrmult # Annealed cliping parameter epislon
 
     ob = U.get_placeholder_cached(name="ob")
@@ -143,7 +171,33 @@ def learn(env, policy_fn, *,
     losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
     loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
 
+    pol_rac_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
+    pol_rac_losses = [pol_rac_loss]
+    pol_rac_loss_names = ["pol_rac_loss"]
+
+    vf_rac_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target))
+    vf_rac_losses = [vf_rac_loss]
+    vf_rac_loss_names = ["vf_rac_loss"]
+
     var_list = pi.get_trainable_variables()
+
+    vf_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
+        "vf") and v.name.split("/")[2].startswith(
+        "final")]
+    pol_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
+        "pol") and v.name.split("/")[2].startswith(
+        "final")]
+
+    # Train V function
+    vf_lossandgrad = U.function([ob, td_v_target, lrmult],
+                                vf_rac_losses + [U.flatgrad(vf_rac_loss, vf_final_var_list)])
+    vf_adam = MpiAdam(vf_final_var_list, epsilon = adam_epsilon)
+
+    # Train Policy
+    pol_lossandgrad = U.function([ob, ac, adv, lrmult],
+                                 pol_rac_losses + [U.flatgrad(pol_rac_loss, pol_final_var_list)])
+    pol_adam = MpiAdam(pol_final_var_list, epsilon = adam_epsilon)
+
     lossandgrad = U.function([ob, ac, atarg, ret, lrmult], losses + [U.flatgrad(total_loss, var_list)])
     adam = MpiAdam(var_list, epsilon=adam_epsilon)
 
@@ -151,12 +205,27 @@ def learn(env, policy_fn, *,
         for (oldv, newv) in zipsame(oldpi.get_variables(), pi.get_variables())])
     compute_losses = U.function([ob, ac, atarg, ret, lrmult], losses)
 
+    compute_v_pred = U.function([ob], [pi.vpred])
+
     U.initialize()
     adam.sync()
+    pol_adam.sync()
+    vf_adam.sync()
 
     # Prepare for rollouts
     # ----------------------------------------
-    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic=True)
+    global cur_lrmult
+    cur_lrmult = 1.0
+    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch,
+                                     vf_lossandgrad,
+                                     vf_adam,
+                                     pol_lossandgrad,
+                                     pol_adam,
+                                     compute_v_pred,
+                                     gamma,
+                                     cur_lrmult * optim_stepsize * 0.1,
+                                     optim_stepsize,
+                                     stochastic=True)
 
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer,best_fitness
@@ -179,7 +248,6 @@ def learn(env, policy_fn, *,
             break
         elif max_seconds and time.time() - tstart >= max_seconds:
             break
-
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
@@ -195,8 +263,8 @@ def learn(env, policy_fn, *,
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
-        if iters_so_far == 0:
-            result_record()
+        # if iters_so_far == 0:
+        #     result_record()
 
         add_vtarg_and_adv(seg, gamma, lam)
 
@@ -220,28 +288,8 @@ def learn(env, policy_fn, *,
                 adam.update(g, optim_stepsize * cur_lrmult)
                 losses.append(newlosses)
             # logger.log(fmt_row(13, np.mean(losses, axis=0)))
-        logger.log("Current Iteration Training Performance:" + str(np.mean(seg["ep_rets"])))
-        # logger.log("Evaluating losses...")
-        # losses = []
-        # for batch in d.iterate_once(optim_batchsize):
-        #     newlosses = compute_losses(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
-        #     losses.append(newlosses)
-        # meanlosses,_,_ = mpi_moments(losses, axis=0)
-        # logger.log(fmt_row(13, meanlosses))
-        # for (lossval, name) in zipsame(meanlosses, loss_names):
-        #     logger.record_tabular("loss_"+name, lossval)
-        # logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
-        # logger.record_tabular("EpLenMean", np.mean(lenbuffer))
-        # logger.record_tabular("EpRewMean", np.mean(rewbuffer))
-        # logger.record_tabular("EpThisIter", len(lens))
-        # episodes_so_far += len(lens)
-        # timesteps_so_far += sum(lens)
+        # logger.log("Current Iteration Training Performance:" + str(np.mean(seg["ep_rets"])))
         iters_so_far += 1
-        # logger.record_tabular("EpisodesSoFar", episodes_so_far)
-        # logger.record_tabular("TimestepsSoFar", timesteps_so_far)
-        # logger.record_tabular("TimeElapsed", time.time() - tstart)
-        # if MPI.COMM_WORLD.Get_rank()==0:
-        #     logger.dump_tabular()
 
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]
