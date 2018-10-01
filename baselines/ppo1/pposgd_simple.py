@@ -234,7 +234,7 @@ def learn(env, policy_fn, *,
         # logger.record_tabular("EpLenMean", np.mean(lenbuffer))
         # logger.record_tabular("EpRewMean", np.mean(rewbuffer))
         # logger.record_tabular("EpThisIter", len(lens))
-        # episodes_so_far += len(lens)
+        episodes_so_far += len(lens)
         # timesteps_so_far += sum(lens)
         iters_so_far += 1
         # logger.record_tabular("EpisodesSoFar", episodes_so_far)
