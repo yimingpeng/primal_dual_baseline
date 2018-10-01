@@ -13,13 +13,13 @@ from baselines.common import tf_util as U
 from baselines import logger
 
 def train(env_id, num_timesteps, seed):
-    from baselines.rac import mlp_policy, rac_simple
+    from baselines.ppo1 import mlp_policy, pposgd_simple
     U.make_session(num_cpu=1).__enter__()
     def policy_fn(name, ob_space, ac_space):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
             hid_size=64, num_hid_layers=2)
     env = make_gym_control_env(env_id, seed)
-    rac_simple.learn(env, policy_fn,
+    pposgd_simple.learn(env, policy_fn,
             max_timesteps=num_timesteps,
             timesteps_per_actorbatch=2048,
             clip_param=0.2, entcoeff=0.0,
