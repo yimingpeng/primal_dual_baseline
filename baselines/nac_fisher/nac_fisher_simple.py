@@ -209,6 +209,8 @@ def learn(env, policy_fn, *,
     # pol_update = U.function([ob, ac, adv], [pol_train_op])
 
     U.initialize()
+    vf_adam.sync()
+    pol_adam.sync()
     # Prepare for rollouts
     # ----------------------------------------
     global cur_lrmult
