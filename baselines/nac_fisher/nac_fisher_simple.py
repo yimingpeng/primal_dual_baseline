@@ -127,12 +127,12 @@ def learn(env, policy_fn, *,
 
     lrmult = tf.placeholder(name = 'lrmult', dtype = tf.float32,
                             shape = [])  # learning rate multiplier, updated with schedule
-
+    G_t_inv = tf.placeholder(dtype = tf.float32, shape = [None, None])
+    alpha = tf.placeholder(dtype = tf.float32, shape = [1])
     ob = U.get_placeholder_cached(name = "ob")
     ac = pi.pdtype.sample_placeholder([None])
     adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])
-
-    ent = pi.pd.entropy()
+    step = tf.placeholder(dtype = tf.float32, shape = [1])
 
     pol_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
     pol_losses = [pol_loss]
@@ -147,6 +147,12 @@ def learn(env, policy_fn, *,
         "vf")]
     pol_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
         "pol")]
+
+    compatible_feature = U.flatgrad(pi.pd.neglogp(ac), pol_var_list)
+
+    G_t_inv_next = 1/(1-alpha) * (G_t_inv -
+                                  alpha * (G_t_inv * compatible_feature)*tf.transpose(G_t_inv * compatible_feature)
+                                  / (1 - alpha + alpha * tf.transpose(compatible_feature) * G_t_inv * compatible_feature))
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
@@ -166,6 +172,9 @@ def learn(env, policy_fn, *,
 
     # Computation
     compute_v_pred = U.function([ob], [pi.vpred])
+    get_pol_weights_num  = np.sum([np.prod(v.get_shape().as_list()) for v in pol_var_list])
+
+    get_G_t_inv = U.function([ob, ac, G_t_inv, alpha], [G_t_inv_next])
     # vf_update = U.function([ob, td_v_target], [vf_train_op])
     # pol_update = U.function([ob, ac, adv], [pol_train_op])
 
@@ -215,6 +224,9 @@ def learn(env, policy_fn, *,
         ep_lens = []  # lengths of ...
 
         obs = []
+        k = 1.0
+        G_t_inv = [k * np.eye(get_pol_weights_num)]
+        compatible_features = []
         for t in itertools.count():
             ac, vpred = pi.act(stochastic = True, ob = ob)
 
@@ -228,15 +240,19 @@ def learn(env, policy_fn, *,
             # Compute v target and TD
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
+            alpha = optim_stepsize * cur_lrmult
+
+            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0], np.array([alpha]))
 
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            cur_lrmult)
-            vf_adam.update(vf_g, optim_stepsize * cur_lrmult)
+            vf_adam.update(vf_g, alpha)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
                                               cur_lrmult)
-            pol_adam.update(pol_g, optim_stepsize * 0.1 * cur_lrmult)
+            pol_adam.update(G_t_inv[0].dot(pol_g), optim_stepsize * 0.1 * cur_lrmult)
             ob = next_ob
+            # print("{}-{}".format(t,rew))
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
                 result_record()
             if done:
