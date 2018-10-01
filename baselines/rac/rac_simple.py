@@ -236,7 +236,7 @@ def learn(env, policy_fn, *,
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
                                               cur_lrmult)
             pol_adam.update(pol_g, optim_stepsize * 0.1 * cur_lrmult)
-
+            ob = next_ob
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
                 result_record()
             if done:
