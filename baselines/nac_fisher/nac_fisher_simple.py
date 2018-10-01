@@ -227,7 +227,8 @@ def learn(env, policy_fn, *,
         k = 1.0
         G_t_inv = [k * np.eye(get_pol_weights_num)]
         compatible_features = []
-        for t in itertools.count():
+        from tqdm import tqdm
+        for t in tqdm(itertools.count(), ascii=True):
             ac, vpred = pi.act(stochastic = True, ob = ob)
 
             obs.append(ob)
