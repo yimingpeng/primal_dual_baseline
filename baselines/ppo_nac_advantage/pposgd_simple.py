@@ -163,7 +163,8 @@ def learn(env, policy_fn, *,
                 max_seconds > 0]) == 1, "Only one time constraint permitted"
 
     seg = None
-    omega_t = np.random.rand(get_pol_weights_num)
+    # omega_t = np.random.rand(get_pol_weights_num)
+    omega_t = np.zeros(get_pol_weights_num)
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -202,10 +203,11 @@ def learn(env, policy_fn, *,
         acs = np.array([ac for _ in range(horizon)])
         prevacs = acs.copy()
 
-        rac_alpha = optim_stepsize * cur_lrmult
-        rac_beta = optim_stepsize * cur_lrmult * 0.1
-        from tqdm import tqdm
-        for t in tqdm(itertools.count(), ascii = True):
+        rac_alpha = optim_stepsize * cur_lrmult * 0.1
+        rac_beta = optim_stepsize * cur_lrmult * 0.001
+        # from tqdm import tqdm
+        # for t in tqdm(itertools.count(), ascii = True):
+        for t in itertools.count():
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
                 result_record()
             prevac = ac
@@ -242,9 +244,9 @@ def learn(env, policy_fn, *,
             compatible_feature = np.array(
                 get_compatible_feature(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0]))))
             compatible_feature_product = compatible_feature * compatible_feature.T
-            omega_t = (np.eye(compatible_feature_product.shape[0]) -rac_alpha * compatible_feature_product).dot(
+            omega_t = (np.eye(compatible_feature_product.shape[0]) -0.1*rac_alpha * compatible_feature_product).dot(
                 omega_t) \
-                      + rac_alpha * pol_g
+                      + 0.1*rac_alpha * pol_g
 
             pol_adam.update(omega_t, rac_beta)
 
@@ -267,27 +269,27 @@ def learn(env, policy_fn, *,
                 episodes_so_far += 1
             t += 1
 
-        # add_vtarg_and_adv(seg, gamma, lam)
-        #
-        # # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
-        # ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
-        # vpredbefore = seg["vpred"] # predicted value function before udpate
-        # atarg = (atarg - atarg.mean()) / atarg.std() # standardized advantage function estimate
-        # d = Dataset(dict(ob=ob, ac=ac, atarg=atarg, vtarg=tdlamret), shuffle=not pi.recurrent)
-        # optim_batchsize = optim_batchsize or ob.shape[0]
-        #
-        # if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob) # update running mean/std for policy
-        #
-        # assign_old_eq_new() # set old parameter values to new parameter values
-        # # logger.log("Optimizing...")
-        # # logger.log(fmt_row(13, loss_names))
-        # # Here we do a bunch of optimization epochs over the data
-        # for _ in range(optim_epochs):
-        #     losses = [] # list of tuples, each of which gives the loss for a minibatch
-        #     for batch in d.iterate_once(optim_batchsize):
-        #         *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
-        #         adam.update(g, optim_stepsize * cur_lrmult)
-        #         losses.append(newlosses)
+        add_vtarg_and_adv(seg, gamma, lam)
+
+        # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
+        ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
+        vpredbefore = seg["vpred"] # predicted value function before udpate
+        atarg = (atarg - atarg.mean()) / atarg.std() # standardized advantage function estimate
+        d = Dataset(dict(ob=ob, ac=ac, atarg=atarg, vtarg=tdlamret), shuffle=not pi.recurrent)
+        optim_batchsize = optim_batchsize or ob.shape[0]
+
+        if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob) # update running mean/std for policy
+
+        assign_old_eq_new() # set old parameter values to new parameter values
+        # logger.log("Optimizing...")
+        # logger.log(fmt_row(13, loss_names))
+        # Here we do a bunch of optimization epochs over the data
+        for _ in range(optim_epochs):
+            losses = [] # list of tuples, each of which gives the loss for a minibatch
+            for batch in d.iterate_once(optim_batchsize):
+                *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
+                adam.update(g, optim_stepsize * cur_lrmult)
+                losses.append(newlosses)
         # logger.log(fmt_row(13, np.mean(losses, axis=0)))
         # logger.log("Current Iteration Training Performance:" + str(np.mean(seg["ep_rets"])))
         iters_so_far += 1
