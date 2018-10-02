@@ -287,8 +287,8 @@ def learn(env, policy_fn, *,
         acs = np.array([ac for _ in range(horizon)])
         prevacs = acs.copy()
 
-        rac_alpha = optim_stepsize * cur_lrmult * 0.1
-        rac_beta = optim_stepsize * cur_lrmult * 0.01
+        rac_alpha = optim_stepsize * cur_lrmult
+        rac_beta = optim_stepsize * cur_lrmult * 0.1
 
         pol_gradients = []
         t_0 = 0
@@ -324,17 +324,17 @@ def learn(env, policy_fn, *,
 
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
-                                           cur_lrmult)
-            vf_adam.update(vf_g, optim_stepsize * cur_lrmult)
+                                           rac_alpha)
+            vf_adam.update(vf_g, rac_alpha)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
-                                              cur_lrmult)
+                                              rac_beta)
             pol_gradients.append(pol_g)
 
             if t % update_step_threshold == 0 and t > 0:
                 scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
                 coef = t/np.sum(scaling_factor)
                 sum_weighted_pol_gradients = np.sum([scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-                pol_adam.update(coef*sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
+                pol_adam.update(coef*sum_weighted_pol_gradients, rac_beta)
                 pol_gradients = []
                 t_0 = t
 
@@ -349,7 +349,7 @@ def learn(env, policy_fn, *,
                 scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
                 coef = t/np.sum(scaling_factor)
                 sum_weighted_pol_gradients = np.sum([scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-                pol_adam.update(coef*sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
+                pol_adam.update(coef*sum_weighted_pol_gradients, rac_beta)
                 pol_gradients = []
                 t_0 = t
                 print(
