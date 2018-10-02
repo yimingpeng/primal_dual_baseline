@@ -131,21 +131,6 @@ def learn(env, policy_fn, *,
     pol_adam.sync()
     vf_adam.sync()
 
-    # Prepare for rollouts
-    # ----------------------------------------
-    global cur_lrmult
-    cur_lrmult = 1.0
-    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch,
-                                     vf_lossandgrad,
-                                     vf_adam,
-                                     pol_lossandgrad,
-                                     pol_adam,
-                                     compute_v_pred,
-                                     gamma,
-                                     cur_lrmult * optim_stepsize * 10,
-                                     optim_stepsize,
-                                     stochastic=True)
-
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer,best_fitness
     episodes_so_far = 0
