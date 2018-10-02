@@ -142,6 +142,7 @@ def learn(env, policy_fn, *,
         max_timesteps=0, max_episodes=0, max_iters=0, max_seconds=0,  # time constraint
         callback=None, # you can do anything in the callback, since it takes locals(), globals()
         adam_epsilon=1e-5,
+        update_step_threshold = 100, # Updating step threshold
         schedule='constant' # annealing for stepsize parameters (epsilon and adam)
         ):
     # Setup losses and stuff
@@ -287,6 +288,9 @@ def learn(env, policy_fn, *,
 
         k = 1.0
         G_t_inv = [k * np.eye(get_pol_weights_num)]
+
+        pol_gradients = []
+        t_0 = 0
         for t in itertools.count():
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
                 result_record()
@@ -324,7 +328,13 @@ def learn(env, policy_fn, *,
             vf_adam.update(vf_g, optim_stepsize * cur_lrmult)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
                                               cur_lrmult)
-            pol_adam.update(G_t_inv[0].dot(pol_g), optim_stepsize * 0.1 * cur_lrmult)
+
+            pol_gradients.append(pol_g)
+            if t % update_step_threshold == 0 and t > 0:
+                sum_pol_gradients = np.sum(pol_gradients, axis = 0)
+                pol_adam.update(G_t_inv[0].dot(sum_pol_gradients), optim_stepsize * 0.1 * cur_lrmult)
+                pol_gradients = []
+                t_0 = t
 
             rews[i] = rew
 
@@ -333,6 +343,11 @@ def learn(env, policy_fn, *,
             timesteps_so_far+=1
             ob = next_ob
             if new:
+                # Episode End Update
+                sum_pol_gradients = np.sum(pol_gradients, axis = 0)
+                pol_adam.update(G_t_inv[0].dot(sum_pol_gradients), optim_stepsize * 0.1 * cur_lrmult)
+                pol_gradients = []
+                t_0 = t
                 print(
                     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
                 ep_rets.append(cur_ep_ret)
