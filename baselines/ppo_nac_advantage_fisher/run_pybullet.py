@@ -29,7 +29,7 @@ def train(env_id, num_timesteps, seed):
             max_timesteps=num_timesteps,
             timesteps_per_actorbatch=2048,
             clip_param=0.2, entcoeff=0.0,
-            optim_epochs=10, optim_stepsize=3e-4, optim_batchsize=64,
+            optim_epochs=10, optim_stepsize=0.01, optim_batchsize=64,
             gamma=0.99, lam=0.95, schedule='linear'
         )
     env.close()
@@ -37,8 +37,8 @@ def train(env_id, num_timesteps, seed):
 def main():
     args = pybullet_arg_parser().parse_args()
     logger.configure(
-                     format_strs=['stdout', 'log', 'csv'], log_suffix = "PPO_NAC_Advantage-"+args.env)
-    logger.log("Algorithm: PPO_NAC_Advantage-"+args.env)
+                     format_strs=['stdout', 'log', 'csv'], log_suffix = "PPO_NAC_Advantage_Fisher-"+args.env)
+    logger.log("Algorithm: PPO_NAC_Advantage_Fisher-"+args.env)
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 
 if __name__ == '__main__':

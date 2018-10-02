@@ -10,6 +10,7 @@ from collections import deque
 
 import itertools
 
+
 def result_record():
     global lenbuffer, rewbuffer, iters_so_far, timesteps_so_far, \
         episodes_so_far, tstart
@@ -30,50 +31,52 @@ def result_record():
     if MPI.COMM_WORLD.Get_rank() == 0:
         logger.dump_tabular()
 
+
 def add_vtarg_and_adv(seg, gamma, lam):
     """
     Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
     """
-    new = np.append(seg["new"], 0) # last element is only used for last vtarg, but we already zeroed it if last new = 1
+    new = np.append(seg["new"], 0)  # last element is only used for last vtarg, but we already zeroed it if last new = 1
     vpred = np.append(seg["vpred"], seg["nextvpred"])
     T = len(seg["rew"])
     seg["adv"] = gaelam = np.empty(T, 'float32')
     rew = seg["rew"]
     lastgaelam = 0
     for t in reversed(range(T)):
-        nonterminal = 1-new[t+1]
-        delta = rew[t] + gamma * vpred[t+1] * nonterminal - vpred[t]
+        nonterminal = 1 - new[t + 1]
+        delta = rew[t] + gamma * vpred[t + 1] * nonterminal - vpred[t]
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
+
 def learn(env, policy_fn, *,
-        timesteps_per_actorbatch, # timesteps per actor per update
-        clip_param, entcoeff, # clipping parameter epsilon, entropy coeff
-        optim_epochs, optim_stepsize, optim_batchsize,# optimization hypers
-        gamma, lam, # advantage estimation
-        max_timesteps=0, max_episodes=0, max_iters=0, max_seconds=0,  # time constraint
-        callback=None, # you can do anything in the callback, since it takes locals(), globals()
-        adam_epsilon=1e-5,
-        schedule='constant' # annealing for stepsize parameters (epsilon and adam)
-        ):
+          timesteps_per_actorbatch,  # timesteps per actor per update
+          clip_param, entcoeff,  # clipping parameter epsilon, entropy coeff
+          optim_epochs, optim_stepsize, optim_batchsize,  # optimization hypers
+          gamma, lam,  # advantage estimation
+          max_timesteps = 0, max_episodes = 0, max_iters = 0, max_seconds = 0,  # time constraint
+          callback = None,  # you can do anything in the callback, since it takes locals(), globals()
+          adam_epsilon = 1e-5,
+          schedule = 'constant'  # annealing for stepsize parameters (epsilon and adam)
+          ):
     # Setup losses and stuff
     # ----------------------------------------
     ob_space = env.observation_space
     ac_space = env.action_space
-    pi = policy_fn("pi", ob_space, ac_space) # Construct network for new policy
-    oldpi = policy_fn("oldpi", ob_space, ac_space) # Network for old policy
-    atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
-    ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
-
+    pi = policy_fn("pi", ob_space, ac_space)  # Construct network for new policy
+    oldpi = policy_fn("oldpi", ob_space, ac_space)  # Network for old policy
+    atarg = tf.placeholder(dtype = tf.float32, shape = [None])  # Target advantage function (if applicable)
+    ret = tf.placeholder(dtype = tf.float32, shape = [None])  # Empirical return
 
     td_v_target = tf.placeholder(dtype = tf.float32, shape = [1, 1])  # V target for RAC
 
-    lrmult = tf.placeholder(name='lrmult', dtype=tf.float32, shape=[]) # learning rate multiplier, updated with schedule
-    adv = tf.placeholder(dtype = tf.float32, shape = [1, 1]) # Advantage function for RAC
+    lrmult = tf.placeholder(name = 'lrmult', dtype = tf.float32,
+                            shape = [])  # learning rate multiplier, updated with schedule
+    adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])  # Advantage function for RAC
 
-    clip_param = clip_param * lrmult # Annealed cliping parameter epislon
+    clip_param = clip_param * lrmult  # Annealed cliping parameter epislon
 
-    ob = U.get_placeholder_cached(name="ob")
+    ob = U.get_placeholder_cached(name = "ob")
     ac = pi.pdtype.sample_placeholder([None])
 
     kloldnew = oldpi.pd.kl(pi.pd)
@@ -82,10 +85,10 @@ def learn(env, policy_fn, *,
     meanent = tf.reduce_mean(ent)
     pol_entpen = (-entcoeff) * meanent
 
-    ratio = tf.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac)) # pnew / pold
-    surr1 = ratio * atarg # surrogate from conservative policy iteration
-    surr2 = tf.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg #
-    pol_surr = - tf.reduce_mean(tf.minimum(surr1, surr2)) # PPO's pessimistic surrogate (L^CLIP)
+    ratio = tf.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac))  # pnew / pold
+    surr1 = ratio * atarg  # surrogate from conservative policy iteration
+    surr2 = tf.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg  #
+    pol_surr = - tf.reduce_mean(tf.minimum(surr1, surr2))  # PPO's pessimistic surrogate (L^CLIP)
     vf_loss = tf.reduce_mean(tf.square(pi.vpred - ret))
     total_loss = pol_surr + pol_entpen + vf_loss
     losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
@@ -102,11 +105,16 @@ def learn(env, policy_fn, *,
     var_list = pi.get_trainable_variables()
 
     vf_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-        "vf") and v.name.split("/")[2].startswith(
-        "final")]
+        "vf")]
     pol_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-        "pol") and v.name.split("/")[2].startswith(
-        "final")]
+        "pol")]
+
+    # vf_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
+    #     "vf") and v.name.split("/")[2].startswith(
+    #     "final")]
+    # pol_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
+    #     "pol") and v.name.split("/")[2].startswith(
+    #     "final")]
 
     compatible_feature = U.flatgrad(pi.pd.neglogp(ac), pol_final_var_list)
     # compatible_feature = tf.reshape(compatible_feature, [compatible_feature.get_shape().as_list()[0], 1])
@@ -126,14 +134,15 @@ def learn(env, policy_fn, *,
     pol_adam = MpiAdam(pol_final_var_list, epsilon = adam_epsilon)
 
     lossandgrad = U.function([ob, ac, atarg, ret, lrmult], losses + [U.flatgrad(total_loss, var_list)])
-    adam = MpiAdam(var_list, epsilon=adam_epsilon)
+    adam = MpiAdam(var_list, epsilon = adam_epsilon)
 
-    assign_old_eq_new = U.function([],[], updates=[tf.assign(oldv, newv)
-        for (oldv, newv) in zipsame(oldpi.get_variables(), pi.get_variables())])
+    assign_old_eq_new = U.function([], [], updates = [tf.assign(oldv, newv)
+                                                      for (oldv, newv) in
+                                                      zipsame(oldpi.get_variables(), pi.get_variables())])
     compute_losses = U.function([ob, ac, atarg, ret, lrmult], losses)
 
     compute_v_pred = U.function([ob], [pi.vpred])
-    get_pol_weights_num  = np.sum([np.prod(v.get_shape().as_list()) for v in pol_final_var_list])
+    get_pol_weights_num = np.sum([np.prod(v.get_shape().as_list()) for v in pol_final_var_list])
     get_compatible_feature = U.function([ob, ac], [compatible_feature])
 
     U.initialize()
@@ -142,15 +151,16 @@ def learn(env, policy_fn, *,
     vf_adam.sync()
 
     global timesteps_so_far, episodes_so_far, iters_so_far, \
-        tstart, lenbuffer, rewbuffer,best_fitness
+        tstart, lenbuffer, rewbuffer, best_fitness
     episodes_so_far = 0
     timesteps_so_far = 0
     iters_so_far = 0
     tstart = time.time()
-    lenbuffer = deque(maxlen=100) # rolling buffer for episode lengths
-    rewbuffer = deque(maxlen=100) # rolling buffer for episode rewards
+    lenbuffer = deque(maxlen = 100)  # rolling buffer for episode lengths
+    rewbuffer = deque(maxlen = 100)  # rolling buffer for episode rewards
 
-    assert sum([max_iters>0, max_timesteps>0, max_episodes>0, max_seconds>0])==1, "Only one time constraint permitted"
+    assert sum([max_iters > 0, max_timesteps > 0, max_episodes > 0,
+                max_seconds > 0]) == 1, "Only one time constraint permitted"
 
     seg = None
     omega_t = np.random.rand(get_pol_weights_num)
@@ -167,21 +177,21 @@ def learn(env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult =  max(1.0 - float(timesteps_so_far) / (max_timesteps/2), 0)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / (max_timesteps / 2), 0)
         else:
             raise NotImplementedError
 
-        logger.log("********** Iteration %i ************"%iters_so_far)
+        logger.log("********** Iteration %i ************" % iters_so_far)
 
         t = 0
-        ac = env.action_space.sample() # not used, just so we have the datatype
-        new = True # marks if we're on first timestep of an episode
+        ac = env.action_space.sample()  # not used, just so we have the datatype
+        new = True  # marks if we're on first timestep of an episode
         ob = env.reset()
 
-        cur_ep_ret = 0 # return in current episode
-        cur_ep_len = 0 # len of current episode
-        ep_rets = [] # returns of completed episodes in this segment
-        ep_lens = [] # lengths of ...
+        cur_ep_ret = 0  # return in current episode
+        cur_ep_len = 0  # len of current episode
+        ep_rets = []  # returns of completed episodes in this segment
+        ep_lens = []  # lengths of ...
         horizon = timesteps_per_actorbatch
 
         # Initialize history arrays
@@ -192,21 +202,21 @@ def learn(env, policy_fn, *,
         acs = np.array([ac for _ in range(horizon)])
         prevacs = acs.copy()
 
-        rac_alpha = optim_stepsize * cur_lrmult * 0.1
-        rac_beta = optim_stepsize * cur_lrmult * 0.001
+        rac_alpha = optim_stepsize * cur_lrmult
+        rac_beta = optim_stepsize * cur_lrmult * 0.1
 
         for t in itertools.count():
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
                 result_record()
             prevac = ac
-            ac, vpred = pi.act(stochastic=True, ob=ob)
+            ac, vpred = pi.act(stochastic = True, ob = ob)
             # Slight weirdness here because we need value function at time T
             # before returning segment [0, T-1] so we get the correct
             # terminal value
             if t > 0 and t % horizon == 0:
-                seg = {"ob" : obs, "rew" : rews, "vpred" : vpreds, "new" : news,
-                    "ac" : acs, "prevac" : prevacs, "nextvpred": vpred * (1 - new),
-                    "ep_rets" : ep_rets, "ep_lens" : ep_lens}
+                seg = {"ob": obs, "rew": rews, "vpred": vpreds, "new": news,
+                       "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new),
+                       "ep_rets": ep_rets, "ep_lens": ep_lens}
                 ep_rets = []
                 ep_lens = []
                 break
@@ -229,10 +239,12 @@ def learn(env, policy_fn, *,
             vf_adam.update(vf_g, rac_alpha)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
                                               rac_beta)
-            compatible_feature = np.array(get_compatible_feature(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0]))))
+            compatible_feature = np.array(
+                get_compatible_feature(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0]))))
             compatible_feature_product = compatible_feature * compatible_feature.T
-            omega_t = (np.eye(compatible_feature_product.shape[0]) - 0.1*rac_alpha * compatible_feature_product).dot(omega_t) \
-                    + rac_alpha * pol_g
+            omega_t = (np.eye(compatible_feature_product.shape[0]) -rac_alpha * compatible_feature_product).dot(
+                omega_t) \
+                      + rac_alpha * pol_g
 
             pol_adam.update(omega_t, rac_beta)
 
@@ -240,7 +252,7 @@ def learn(env, policy_fn, *,
 
             cur_ep_ret += rew
             cur_ep_len += 1
-            timesteps_so_far+=1
+            timesteps_so_far += 1
             ob = next_ob
             if new:
                 print(
@@ -276,9 +288,10 @@ def learn(env, policy_fn, *,
         #         *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
         #         adam.update(g, optim_stepsize * cur_lrmult)
         #         losses.append(newlosses)
-            # logger.log(fmt_row(13, np.mean(losses, axis=0)))
+        # logger.log(fmt_row(13, np.mean(losses, axis=0)))
         # logger.log("Current Iteration Training Performance:" + str(np.mean(seg["ep_rets"])))
         iters_so_far += 1
+
 
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]

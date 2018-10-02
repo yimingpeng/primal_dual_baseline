@@ -67,6 +67,8 @@ def learn(env, policy_fn, *,
     oldpi = policy_fn("oldpi", ob_space, ac_space)  # Network for old policy
     atarg = tf.placeholder(dtype = tf.float32, shape = [None])  # Target advantage function (if applicable)
     ret = tf.placeholder(dtype = tf.float32, shape = [None])  # Empirical return
+    G_t_inv = tf.placeholder(dtype = tf.float32, shape = [None, None])
+    alpha = tf.placeholder(dtype = tf.float32, shape = [1])
 
     td_v_target = tf.placeholder(dtype = tf.float32, shape = [1, 1])  # V target for RAC
 
@@ -112,11 +114,9 @@ def learn(env, policy_fn, *,
         "final")]
 
     compatible_feature = U.flatgrad(pi.pd.neglogp(ac), pol_final_var_list)
-    # compatible_feature = tf.reshape(compatible_feature, [compatible_feature.get_shape().as_list()[0], 1])
-    # compatible_feature_product = compatible_feature * tf.transpose(compatible_feature)
-    #
-    # omage_t_next = tf.matmul(tf.eye(compatible_feature.get_shape().as_list()[0]) - alpha * compatible_feature_product, omega_t)\
-    #                + alpha * adv * compatible_feature
+    G_t_inv_next = 1/(1-alpha) * (G_t_inv -
+                                  alpha * (G_t_inv * compatible_feature)*tf.transpose(G_t_inv * compatible_feature)
+                                  / (1 - alpha + alpha * tf.transpose(compatible_feature) * G_t_inv * compatible_feature))
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
@@ -139,6 +139,7 @@ def learn(env, policy_fn, *,
     compute_v_pred = U.function([ob], [pi.vpred])
     get_pol_weights_num = np.sum([np.prod(v.get_shape().as_list()) for v in pol_final_var_list])
     get_compatible_feature = U.function([ob, ac], [compatible_feature])
+    get_G_t_inv = U.function([ob, ac, G_t_inv, alpha], [G_t_inv_next])
 
     U.initialize()
     adam.sync()
@@ -200,6 +201,8 @@ def learn(env, policy_fn, *,
         rac_alpha = optim_stepsize * cur_lrmult
         rac_beta = optim_stepsize * cur_lrmult * 0.01
 
+        k = 1.0
+        G_t_inv = [k * np.eye(get_pol_weights_num)]
         for t in itertools.count():
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
                 result_record()
@@ -227,7 +230,7 @@ def learn(env, policy_fn, *,
             # Compute v target and TD
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
-
+            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0], np.array([rac_alpha]))
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
@@ -239,7 +242,7 @@ def learn(env, policy_fn, *,
             compatible_feature_product = compatible_feature * compatible_feature.T
             omega_t = (np.eye(compatible_feature_product.shape[0]) - 0.1 * rac_alpha * compatible_feature_product).dot(
                 omega_t) \
-                      + 0.1 * rac_alpha * pol_g
+                      + 0.1 * rac_alpha * G_t_inv[0] * pol_g
 
             pol_adam.update(omega_t, rac_beta)
 
