@@ -204,8 +204,8 @@ def learn(env, policy_fn, *,
 
         rac_alpha = optim_stepsize * cur_lrmult
         rac_beta = optim_stepsize * cur_lrmult * 0.1
-
-        for t in itertools.count():
+        from tqdm import tqdm
+        for t in tqdm(itertools.count(), ascii = True):
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
                 result_record()
             prevac = ac
