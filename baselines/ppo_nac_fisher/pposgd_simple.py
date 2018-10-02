@@ -282,8 +282,8 @@ def learn(env, policy_fn, *,
         acs = np.array([ac for _ in range(horizon)])
         prevacs = acs.copy()
 
-        rac_alpha = optim_stepsize * cur_lrmult * 0.1
-        rac_beta = optim_stepsize * cur_lrmult * 0.01
+        rac_alpha = optim_stepsize * cur_lrmult
+        rac_beta = optim_stepsize * cur_lrmult * 0.1
 
         k = 1.0
         G_t_inv = [k * np.eye(get_pol_weights_num)]
@@ -315,16 +315,14 @@ def learn(env, policy_fn, *,
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
 
-            alpha = optim_stepsize * cur_lrmult
-
-            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0], np.array([alpha]))
+            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0], np.array([rac_alpha]))
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
-                                           cur_lrmult)
-            vf_adam.update(vf_g, optim_stepsize * cur_lrmult)
+                                           rac_alpha)
+            vf_adam.update(vf_g, rac_alpha)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
-                                              cur_lrmult)
-            pol_adam.update(G_t_inv[0].dot(pol_g), optim_stepsize * 0.1 * cur_lrmult)
+                                              rac_beta)
+            pol_adam.update(G_t_inv[0].dot(pol_g), rac_beta)
 
             rews[i] = rew
 

@@ -65,6 +65,7 @@ def learn(env, policy_fn, *,
     atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
 
+
     td_v_target = tf.placeholder(dtype = tf.float32, shape = [1, 1])  # V target for RAC
 
     lrmult = tf.placeholder(name='lrmult', dtype=tf.float32, shape=[]) # learning rate multiplier, updated with schedule
@@ -107,6 +108,13 @@ def learn(env, policy_fn, *,
         "pol") and v.name.split("/")[2].startswith(
         "final")]
 
+    compatible_feature = U.flatgrad(pi.pd.neglogp(ac), pol_final_var_list)
+    # compatible_feature = tf.reshape(compatible_feature, [compatible_feature.get_shape().as_list()[0], 1])
+    # compatible_feature_product = compatible_feature * tf.transpose(compatible_feature)
+    #
+    # omage_t_next = tf.matmul(tf.eye(compatible_feature.get_shape().as_list()[0]) - alpha * compatible_feature_product, omega_t)\
+    #                + alpha * adv * compatible_feature
+
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
                                 vf_rac_losses + [U.flatgrad(vf_rac_loss, vf_final_var_list)])
@@ -125,6 +133,8 @@ def learn(env, policy_fn, *,
     compute_losses = U.function([ob, ac, atarg, ret, lrmult], losses)
 
     compute_v_pred = U.function([ob], [pi.vpred])
+    get_pol_weights_num  = np.sum([np.prod(v.get_shape().as_list()) for v in pol_final_var_list])
+    get_compatible_feature = U.function([ob, ac], [compatible_feature])
 
     U.initialize()
     adam.sync()
@@ -143,6 +153,7 @@ def learn(env, policy_fn, *,
     assert sum([max_iters>0, max_timesteps>0, max_episodes>0, max_seconds>0])==1, "Only one time constraint permitted"
 
     seg = None
+    omega_t = np.random.rand(get_pol_weights_num)
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -182,7 +193,7 @@ def learn(env, policy_fn, *,
         prevacs = acs.copy()
 
         rac_alpha = optim_stepsize * cur_lrmult * 0.1
-        rac_beta = optim_stepsize * cur_lrmult * 0.01
+        rac_beta = optim_stepsize * cur_lrmult * 0.001
 
         for t in itertools.count():
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
@@ -218,7 +229,12 @@ def learn(env, policy_fn, *,
             vf_adam.update(vf_g, rac_alpha)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
                                               rac_beta)
-            pol_adam.update(pol_g, rac_beta)
+            compatible_feature = np.array(get_compatible_feature(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0]))))
+            compatible_feature_product = compatible_feature * compatible_feature.T
+            omega_t = (np.eye(compatible_feature_product.shape[0]) - 0.1*rac_alpha * compatible_feature_product).dot(omega_t) \
+                    + rac_alpha * pol_g
+
+            pol_adam.update(omega_t, rac_beta)
 
             rews[i] = rew
 
@@ -239,27 +255,27 @@ def learn(env, policy_fn, *,
                 episodes_so_far += 1
             t += 1
 
-        add_vtarg_and_adv(seg, gamma, lam)
-
-        # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
-        ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
-        vpredbefore = seg["vpred"] # predicted value function before udpate
-        atarg = (atarg - atarg.mean()) / atarg.std() # standardized advantage function estimate
-        d = Dataset(dict(ob=ob, ac=ac, atarg=atarg, vtarg=tdlamret), shuffle=not pi.recurrent)
-        optim_batchsize = optim_batchsize or ob.shape[0]
-
-        if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob) # update running mean/std for policy
-
-        assign_old_eq_new() # set old parameter values to new parameter values
-        # logger.log("Optimizing...")
-        # logger.log(fmt_row(13, loss_names))
-        # Here we do a bunch of optimization epochs over the data
-        for _ in range(optim_epochs):
-            losses = [] # list of tuples, each of which gives the loss for a minibatch
-            for batch in d.iterate_once(optim_batchsize):
-                *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
-                adam.update(g, optim_stepsize * cur_lrmult)
-                losses.append(newlosses)
+        # add_vtarg_and_adv(seg, gamma, lam)
+        #
+        # # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
+        # ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
+        # vpredbefore = seg["vpred"] # predicted value function before udpate
+        # atarg = (atarg - atarg.mean()) / atarg.std() # standardized advantage function estimate
+        # d = Dataset(dict(ob=ob, ac=ac, atarg=atarg, vtarg=tdlamret), shuffle=not pi.recurrent)
+        # optim_batchsize = optim_batchsize or ob.shape[0]
+        #
+        # if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob) # update running mean/std for policy
+        #
+        # assign_old_eq_new() # set old parameter values to new parameter values
+        # # logger.log("Optimizing...")
+        # # logger.log(fmt_row(13, loss_names))
+        # # Here we do a bunch of optimization epochs over the data
+        # for _ in range(optim_epochs):
+        #     losses = [] # list of tuples, each of which gives the loss for a minibatch
+        #     for batch in d.iterate_once(optim_batchsize):
+        #         *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
+        #         adam.update(g, optim_stepsize * cur_lrmult)
+        #         losses.append(newlosses)
             # logger.log(fmt_row(13, np.mean(losses, axis=0)))
         # logger.log("Current Iteration Training Performance:" + str(np.mean(seg["ep_rets"])))
         iters_so_far += 1
