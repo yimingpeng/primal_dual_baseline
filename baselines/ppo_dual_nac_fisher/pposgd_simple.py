@@ -7,7 +7,7 @@ from baselines.common.mpi_adam import MpiAdam
 from baselines.common.mpi_moments import mpi_moments
 from mpi4py import MPI
 from collections import deque
-
+import itertools
 
 def traj_segment_generator(pi, env, horizon,
                                      vf_lossandgrad,
@@ -232,20 +232,6 @@ def learn(env, policy_fn, *,
 
     # Prepare for rollouts
     # ----------------------------------------
-    global cur_lrmult
-    cur_lrmult = 1.0
-    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch,
-                                     vf_lossandgrad,
-                                     vf_adam,
-                                     pol_lossandgrad,
-                                     pol_adam,
-                                     compute_v_pred,
-                                     get_pol_weights_num,
-                                     get_G_t_inv,
-                                     gamma,
-                                     cur_lrmult * optim_stepsize * 0.1,
-                                     optim_stepsize,
-                                     stochastic=True)
 
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer,best_fitness
@@ -257,7 +243,7 @@ def learn(env, policy_fn, *,
     rewbuffer = deque(maxlen=100) # rolling buffer for episode rewards
 
     assert sum([max_iters>0, max_timesteps>0, max_episodes>0, max_seconds>0])==1, "Only one time constraint permitted"
-
+    seg = None
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -277,12 +263,87 @@ def learn(env, policy_fn, *,
 
         logger.log("********** Iteration %i ************"%iters_so_far)
 
-        seg = seg_gen.__next__()
-        lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
-        listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
-        lens, rews = map(flatten_lists, zip(*listoflrpairs))
-        lenbuffer.extend(lens)
-        rewbuffer.extend(rews)
+        t = 0
+        ac = env.action_space.sample() # not used, just so we have the datatype
+        new = True # marks if we're on first timestep of an episode
+        ob = env.reset()
+
+        cur_ep_ret = 0 # return in current episode
+        cur_ep_len = 0 # len of current episode
+        ep_rets = [] # returns of completed episodes in this segment
+        ep_lens = [] # lengths of ...
+        horizon = timesteps_per_actorbatch
+
+        # Initialize history arrays
+        obs = np.array([ob for _ in range(horizon)])
+        rews = np.zeros(horizon, 'float32')
+        vpreds = np.zeros(horizon, 'float32')
+        news = np.zeros(horizon, 'int32')
+        acs = np.array([ac for _ in range(horizon)])
+        prevacs = acs.copy()
+
+        rac_alpha = optim_stepsize * cur_lrmult * 0.1
+        rac_beta = optim_stepsize * cur_lrmult * 0.01
+
+        k = 1.0
+        G_t_inv = [k * np.eye(get_pol_weights_num)]
+        for t in itertools.count():
+            if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
+                result_record()
+            prevac = ac
+            ac, vpred = pi.act(stochastic=True, ob=ob)
+            # Slight weirdness here because we need value function at time T
+            # before returning segment [0, T-1] so we get the correct
+            # terminal value
+            if t > 0 and t % horizon == 0:
+                seg = {"ob" : obs, "rew" : rews, "vpred" : vpreds, "new" : news,
+                    "ac" : acs, "prevac" : prevacs, "nextvpred": vpred * (1 - new),
+                    "ep_rets" : ep_rets, "ep_lens" : ep_lens}
+                ep_rets = []
+                ep_lens = []
+                break
+            i = t % horizon
+            obs[i] = ob
+            vpreds[i] = vpred
+            news[i] = new
+            acs[i] = ac
+            prevacs[i] = prevac
+            if env.spec._env_name == "LunarLanderContinuous":
+                ac = np.clip(ac, -1.0, 1.0)
+            next_ob, rew, new, _ = env.step(ac)
+            # Compute v target and TD
+            v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
+            adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
+
+            alpha = optim_stepsize * cur_lrmult
+
+            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0], np.array([alpha]))
+            # Update V and Update Policy
+            vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
+                                           cur_lrmult)
+            vf_adam.update(vf_g, optim_stepsize * cur_lrmult)
+            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
+                                              cur_lrmult)
+            pol_adam.update(G_t_inv[0].dot(pol_g), optim_stepsize * 0.1 * cur_lrmult)
+
+            rews[i] = rew
+
+            cur_ep_ret += rew
+            cur_ep_len += 1
+            timesteps_so_far+=1
+            ob = next_ob
+            if new:
+                print(
+                    "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
+                ep_rets.append(cur_ep_ret)
+                ep_lens.append(cur_ep_len)
+                rewbuffer.extend(ep_rets)
+                lenbuffer.extend(ep_lens)
+                cur_ep_ret = 0
+                cur_ep_len = 0
+                ob = env.reset()
+                episodes_so_far += 1
+            t += 1
 
         add_vtarg_and_adv(seg, gamma, lam)
 
@@ -305,7 +366,6 @@ def learn(env, policy_fn, *,
             # logger.log(fmt_row(13, np.mean(losses, axis=0)))
         # logger.log("Current Iteration Training Performance:" + str(np.mean(seg["ep_rets"])))
         iters_so_far += 1
-        episodes_so_far += len(lens)
 
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]
