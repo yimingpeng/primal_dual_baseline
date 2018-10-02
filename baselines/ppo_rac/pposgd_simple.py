@@ -101,11 +101,16 @@ def learn(env, policy_fn, *,
     var_list = pi.get_trainable_variables()
 
     vf_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-        "vf") and v.name.split("/")[2].startswith(
-        "final")]
+        "vf")]
     pol_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-        "pol") and v.name.split("/")[2].startswith(
-        "final")]
+        "pol")]
+
+    # vf_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
+    #     "vf") and v.name.split("/")[2].startswith(
+    #     "final")]
+    # pol_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
+    #     "pol") and v.name.split("/")[2].startswith(
+    #     "final")]
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
@@ -181,8 +186,8 @@ def learn(env, policy_fn, *,
         acs = np.array([ac for _ in range(horizon)])
         prevacs = acs.copy()
 
-        rac_alpha = optim_stepsize * cur_lrmult * 0.1
-        rac_beta = optim_stepsize * cur_lrmult * 0.01
+        rac_alpha = optim_stepsize * cur_lrmult
+        rac_beta = optim_stepsize * cur_lrmult * 0.1
 
         for t in itertools.count():
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
