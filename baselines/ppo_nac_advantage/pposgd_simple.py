@@ -104,17 +104,17 @@ def learn(env, policy_fn, *,
 
     var_list = pi.get_trainable_variables()
 
-    vf_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-        "vf")]
-    pol_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-        "pol")]
-
     # vf_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-    #     "vf") and v.name.split("/")[2].startswith(
-    #     "final")]
+    #     "vf")]
     # pol_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-    #     "pol") and v.name.split("/")[2].startswith(
-    #     "final")]
+    #     "pol")]
+
+    vf_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
+        "vf") and v.name.split("/")[2].startswith(
+        "final")]
+    pol_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
+        "pol") and v.name.split("/")[2].startswith(
+        "final")]
 
     compatible_feature = U.flatgrad(pi.pd.neglogp(ac), pol_final_var_list)
     # compatible_feature = tf.reshape(compatible_feature, [compatible_feature.get_shape().as_list()[0], 1])
