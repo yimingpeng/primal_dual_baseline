@@ -101,16 +101,11 @@ def learn(env, policy_fn, *,
     var_list = pi.get_trainable_variables()
 
     vf_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-        "vf")]
+        "vf") and v.name.split("/")[2].startswith(
+        "final")]
     pol_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-        "pol")]
-
-    # vf_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-    #     "vf") and v.name.split("/")[2].startswith(
-    #     "final")]
-    # pol_final_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-    #     "pol") and v.name.split("/")[2].startswith(
-    #     "final")]
+        "pol") and v.name.split("/")[2].startswith(
+        "final")]
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
