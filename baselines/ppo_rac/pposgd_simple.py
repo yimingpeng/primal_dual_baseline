@@ -181,8 +181,8 @@ def learn(env, policy_fn, *,
         acs = np.array([ac for _ in range(horizon)])
         prevacs = acs.copy()
 
-        rac_alpha = optim_stepsize * cur_lrmult
-        rac_beta = optim_stepsize * cur_lrmult * 0.1
+        rac_alpha = optim_stepsize * cur_lrmult * 0.1
+        rac_beta = optim_stepsize * cur_lrmult * 0.01
 
         for t in itertools.count():
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
@@ -236,6 +236,7 @@ def learn(env, policy_fn, *,
                 cur_ep_ret = 0
                 cur_ep_len = 0
                 ob = env.reset()
+                episodes_so_far += 1
             t += 1
 
         add_vtarg_and_adv(seg, gamma, lam)
