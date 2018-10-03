@@ -255,8 +255,8 @@ def learn(env, policy_fn, *,
             timesteps_so_far += 1
             ob = next_ob
             if new:
-                print(
-                    "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
+                # print(
+                #     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
                 ep_rets.append(cur_ep_ret)
                 ep_lens.append(cur_ep_len)
                 rewbuffer.extend(ep_rets)
