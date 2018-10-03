@@ -188,9 +188,6 @@ def learn(env, policy_fn, *,
             raise NotImplementedError
 
         logger.log("********** Iteration %i ************"%iters_so_far)
-
-        if iters_so_far == 0:
-            result_record()
         seg = seg_gen.__next__()
         lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
@@ -236,6 +233,8 @@ def learn(env, policy_fn, *,
         # logger.record_tabular("EpThisIter", len(lens))
         episodes_so_far += len(lens)
         # timesteps_so_far += sum(lens)
+        if iters_so_far == 0:
+            result_record()
         iters_so_far += 1
         # logger.record_tabular("EpisodesSoFar", episodes_so_far)
         # logger.record_tabular("TimestepsSoFar", timesteps_so_far)

@@ -185,8 +185,7 @@ def learn(env, policy_fn, *,
             raise NotImplementedError
 
         logger.log("********** Iteration %i ************" % iters_so_far)
-        if iters_so_far == 0:
-            result_record()
+
         t = 0
         ac = env.action_space.sample()  # not used, just so we have the datatype
         new = True  # marks if we're on first timestep of an episode
@@ -314,6 +313,8 @@ def learn(env, policy_fn, *,
                 losses.append(newlosses)
         # logger.log(fmt_row(13, np.mean(losses, axis=0)))
         # logger.log("Current Iteration Training Performance:" + str(np.mean(seg["ep_rets"])))
+        if iters_so_far == 0:
+            result_record()
         iters_so_far += 1
 
 
