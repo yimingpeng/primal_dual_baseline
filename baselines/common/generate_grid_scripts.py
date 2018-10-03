@@ -23,7 +23,7 @@ if person == 'achen':
 else:
     f = open("../../grid_scripts/template.sh")
     f2 = open("../../grid_scripts/run_grid_ex_template.sh")
-algorithms = ["PPO", "ppo_rac", "ppo_nac_fisher",
+algorithms = ["ppo", "ppo_rac", "ppo_nac_fisher",
               "ppo_nac_advantage_fisher", "ppo_nac_advantage",
               "ppo_dual_rac", "ppo_dual_nac_fisher", "ppo_dual_nac_advantage"]
 bullet_problems = ["HalfCheetah", "Hopper", "InvertedDoublePendulum",
