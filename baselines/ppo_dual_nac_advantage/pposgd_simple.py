@@ -279,8 +279,8 @@ def learn(env, policy_fn, *,
                 pol_gradients = []
                 t_0 = t
 
-                print(
-                    "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
+                # print(
+                #     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
                 ep_rets.append(cur_ep_ret)
                 ep_lens.append(cur_ep_len)
                 rewbuffer.extend(ep_rets)
