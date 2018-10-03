@@ -244,7 +244,7 @@ def learn(env, policy_fn, *,
             compatible_feature_product = compatible_feature * compatible_feature.T
             omega_t = (np.eye(compatible_feature_product.shape[0]) - 0.1 * rac_alpha * compatible_feature_product).dot(
                 omega_t) \
-                      + 0.1 * rac_alpha * G_t_inv[0] * pol_g
+                      + 0.1 * rac_alpha * G_t_inv[0].dot(pol_g)
 
             pol_adam.update(omega_t, rac_beta)
 
