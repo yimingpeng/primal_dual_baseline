@@ -189,14 +189,14 @@ def learn(env, policy_fn, *,
 
         logger.log("********** Iteration %i ************"%iters_so_far)
 
+        if iters_so_far == 0:
+            result_record()
         seg = seg_gen.__next__()
         lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
-        if iters_so_far == 0:
-            result_record()
 
         add_vtarg_and_adv(seg, gamma, lam)
 

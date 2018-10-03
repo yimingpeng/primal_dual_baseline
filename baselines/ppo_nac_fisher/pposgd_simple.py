@@ -262,6 +262,8 @@ def learn(env, policy_fn, *,
             raise NotImplementedError
 
         logger.log("********** Iteration %i ************"%iters_so_far)
+        if iters_so_far == 0:
+            result_record()
 
         t = 0
         ac = env.action_space.sample() # not used, just so we have the datatype
