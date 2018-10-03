@@ -9,16 +9,16 @@ cd /vol/grid-solar/sgeusers/yimingpeng/cmaes_baselines/grid_scripts/ppo_dual_nac
 
 # setting the grid env
 need sgegrid
-qsub -t 1-10:1 ppo_dual_nac_advantage_HalfCheetah.sh
-qsub -t 1-10:1 ppo_dual_nac_advantage_Hopper.sh
-qsub -t 1-10:1 ppo_dual_nac_advantage_InvertedDoublePendulum.sh
-qsub -t 1-10:1 ppo_dual_nac_advantage_InvertedPendulum.sh
-qsub -t 1-10:1 ppo_dual_nac_advantage_InvertedPendulumSwingup.sh
-qsub -t 1-10:1 ppo_dual_nac_advantage_Reacher.sh
-qsub -t 1-10:1 ppo_dual_nac_advantage_Walker2D.sh
-qsub -t 1-10:1 ppo_dual_nac_advantage_BipedalWalker.sh
-qsub -t 1-10:1 ppo_dual_nac_advantage_BipedalWalkerHardcore.sh
-qsub -t 1-10:1 ppo_dual_nac_advantage_LunarLanderContinuous.sh
+qsub -t 1-5:1 ppo_dual_nac_advantage_HalfCheetah.sh
+qsub -t 1-5:1 ppo_dual_nac_advantage_Hopper.sh
+qsub -t 1-5:1 ppo_dual_nac_advantage_InvertedDoublePendulum.sh
+qsub -t 1-5:1 ppo_dual_nac_advantage_InvertedPendulum.sh
+qsub -t 1-5:1 ppo_dual_nac_advantage_InvertedPendulumSwingup.sh
+qsub -t 1-5:1 ppo_dual_nac_advantage_Reacher.sh
+qsub -t 1-5:1 ppo_dual_nac_advantage_Walker2D.sh
+qsub -t 1-5:1 ppo_dual_nac_advantage_BipedalWalker.sh
+qsub -t 1-5:1 ppo_dual_nac_advantage_BipedalWalkerHardcore.sh
+qsub -t 1-5:1 ppo_dual_nac_advantage_LunarLanderContinuous.sh
 
 
 
