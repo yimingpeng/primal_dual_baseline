@@ -23,10 +23,9 @@ if person == 'achen':
 else:
     f = open("../../grid_scripts/template.sh")
     f2 = open("../../grid_scripts/run_grid_ex_template.sh")
-algorithms = ["PPO", "CMAES", "CMAES_Layer_Entire",
-              "CMAES_Layer_uniform", "DDPG",
-              "ACKTR", "openai_es", "uber_ga",
-              "TRPO", "ppo_cmaes_surrogate1_uniform", "ppo_cmaes_surrogate1_uniform_local_search"]
+algorithms = ["PPO", "ppo_rac", "ppo_nac_fisher",
+              "ppo_nac_advantage_fisher", "ppo_nac_advantage",
+              "ppo_dual_rac", "ppo_dual_nac_fisher", "ppo_dual_nac_advantage"]
 bullet_problems = ["HalfCheetah", "Hopper", "InvertedDoublePendulum",
                    "InvertedPendulum", "InvertedPendulumSwingup", "Reacher",
                    "Walker2D"]
@@ -46,7 +45,7 @@ for algorithm in algorithms:
             if 'pyName="run_pybullet.py"' in line:
                 if algorithm == "DDPG":
                     line = line.replace("run_pybullet.py", "main.py")
-            if "$experimentFolder/$experimentName/ppo1/" in line:
+            if "$experimentFolder/$experimentName/ppo/" in line:
                 line = "cd $experimentFolder/$experimentName/" + algorithm.lower() + "/\n"
             if "BipedalWalker-v2" in line:
                 if algorithm == "DDPG":
@@ -78,7 +77,7 @@ for algorithm in algorithms:
                     line = line.replace("run_pybullet.py", "main.py")
                 else:
                     line = 'pyName="run_gym_ctrl.py"'
-            if "$experimentFolder/$experimentName/ppo1/" in line:
+            if "$experimentFolder/$experimentName/ppo/" in line:
                 line = "cd $experimentFolder/$experimentName/" + algorithm.lower() + "/\n"
             if "BipedalWalker-v2" in line:
                 if algorithm == "DDPG":
