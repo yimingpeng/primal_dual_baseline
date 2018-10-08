@@ -290,7 +290,7 @@ def learn(env, policy_fn, *,
         k = 1.0
         G_t_inv = [k * np.eye(get_pol_weights_num)]
         assign_old_eq_new()
-        for t in itertools.count():
+        while True:
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
                 result_record()
             prevac = ac
