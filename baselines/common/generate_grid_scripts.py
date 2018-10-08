@@ -55,12 +55,12 @@ for algorithm in algorithms:
             f1.write(line)
         f1.close()
         f.seek(0)
-    f3 = open(directory + "/run_grid_ex_" + algorithm + ".sh", 'w')
-    for line in f2:
-        if "ACKTR" in line:
-            line = line.replace("ACKTR", algorithm)
-        f3.write(line)
-    f3.close()
+    # f3 = open(directory + "/run_grid_ex_" + algorithm + ".sh", 'w')
+    # for line in f2:
+    #     if "ACKTR" in line:
+    #         line = line.replace("ACKTR", algorithm)
+    #     f3.write(line)
+    # f3.close()
     f2.seek(0)
 
 # Generate for gym control problems
@@ -88,13 +88,27 @@ for algorithm in algorithms:
         f1.close()
         f.seek(0)
 
-    f3 = open(directory + "/run_grid_ex_" + algorithm + ".sh", 'w')
-    for line in f2:
-        if "ACKTR" in line:
-            line = line.replace("ACKTR", algorithm)
-        f3.write(line)
-    f3.close()
+    # f3 = open(directory + "/run_grid_ex_" + algorithm + ".sh", 'w')
+    # for line in f2:
+    #     if "ACKTR" in line:
+    #         line = line.replace("ACKTR", algorithm)
+    #     f3.write(line)
+    # f3.close()
     f2.seek(0)
 f.close()
+
+import glob
+from functools import reduce
+
+all_list = []
+for algorithm in algorithms:
+    all_files = glob.glob("../../grid_scripts/" + algorithm + "/*.sh")
+    all_list.extend(list(map(lambda x: "".join(["qsub -t 1-5:1 ./",x.split("/")[-2], "/", x.split("/")[-1]]), all_files)))
+# new_list = reduce(lambda x,y:x.extend(y), all_list)
+command = reduce(lambda x,y: "".join([x, "\n", y]), all_list)
+with open("../../grid_scripts/run.sh", "w") as f3:
+    command = reduce(lambda x,y: "".join([x, "\n", y]), all_list)
+    f3.write(command)
+
 
 
