@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 #SBATCH --job-name=ppo_BipedalWalkerHardcore      # job name (shows up in the queue)
 #SBATCH --account=nesi00272     # Project Account
 #SBATCH --time=200:00:00         # Walltime (HH:MM:SS)
@@ -12,7 +12,7 @@
 #SBATCH --error=%A_%a.err
 #SBATCH --output=%A_%a.out
 
-srun bash
-srun export PATH=/home/yiming.peng/miniconda3/bin/:$PATH
-srun source activate cmaes_baselines
+bash
+export PATH=/home/yiming.peng/miniconda3/bin/:$PATH
+source activate cmaes_baselines
 python run_gym_ctrl.py --env BipedalWalkerHardcore-v2 --seed $SLURM_ARRAY_TASK_ID
