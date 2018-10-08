@@ -72,7 +72,7 @@ def learn(env, policy_fn, *,
 
     lrmult = tf.placeholder(name = 'lrmult', dtype = tf.float32,
                             shape = [])  # learning rate multiplier, updated with schedule
-    adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])  # Advantage function for RAC
+    # adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])  # Advantage function for RAC
 
     clip_param = clip_param * lrmult  # Annealed cliping parameter epislon
 
@@ -94,13 +94,15 @@ def learn(env, policy_fn, *,
     losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
     loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
 
-    pol_rac_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
-    pol_rac_losses = [pol_rac_loss]
-    pol_rac_loss_names = ["pol_rac_loss"]
-
     vf_rac_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target))
     vf_rac_losses = [vf_rac_loss]
     vf_rac_loss_names = ["vf_rac_loss"]
+
+    pol_rac_loss_surr1 = atarg * pi.pd.neglogp(ac) * ratio
+    pol_rac_loss_surr2 = tf.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg * pi.pd.neglogp(ac)  #
+    pol_rac_loss = tf.reduce_mean(tf.minimum(pol_rac_loss_surr1, pol_rac_loss_surr2))
+    pol_rac_losses = [pol_rac_loss]
+    pol_rac_loss_names = ["pol_rac_loss"]
 
     var_list = pi.get_trainable_variables()
 
@@ -129,7 +131,7 @@ def learn(env, policy_fn, *,
     vf_adam = MpiAdam(vf_final_var_list, epsilon = adam_epsilon)
 
     # Train Policy
-    pol_lossandgrad = U.function([ob, ac, adv, lrmult],
+    pol_lossandgrad = U.function([ob, ac, atarg, lrmult],
                                  pol_rac_losses + [U.flatgrad(pol_rac_loss, pol_final_var_list)])
     pol_adam = MpiAdam(pol_final_var_list, epsilon = adam_epsilon)
 
@@ -178,7 +180,7 @@ def learn(env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) / (max_timesteps / 2), 0)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / max_timesteps, 0)
         else:
             raise NotImplementedError
 
@@ -207,7 +209,8 @@ def learn(env, policy_fn, *,
         rac_beta = optim_stepsize * cur_lrmult * 0.001
         # from tqdm import tqdm
         # for t in tqdm(itertools.count(), ascii = True):
-        for t in itertools.count():
+        assign_old_eq_new()
+        while True:
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
                 result_record()
             prevac = ac
@@ -239,14 +242,14 @@ def learn(env, policy_fn, *,
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
             vf_adam.update(vf_g, rac_alpha)
-            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
+            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv.reshape(adv.shape[0], ),
                                               rac_beta)
             compatible_feature = np.array(
                 get_compatible_feature(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0]))))
             compatible_feature_product = compatible_feature * compatible_feature.T
-            omega_t = (np.eye(compatible_feature_product.shape[0]) -0.1*rac_alpha * compatible_feature_product).dot(
+            omega_t = (np.eye(compatible_feature_product.shape[0]) - 0.1 * rac_alpha * compatible_feature_product).dot(
                 omega_t) \
-                      + 0.1*rac_alpha * pol_g
+                      + 0.1 * rac_alpha * pol_g
 
             pol_adam.update(omega_t, rac_beta)
 
@@ -273,19 +276,19 @@ def learn(env, policy_fn, *,
 
         # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
         ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
-        vpredbefore = seg["vpred"] # predicted value function before udpate
-        atarg = (atarg - atarg.mean()) / atarg.std() # standardized advantage function estimate
-        d = Dataset(dict(ob=ob, ac=ac, atarg=atarg, vtarg=tdlamret), shuffle=not pi.recurrent)
+        vpredbefore = seg["vpred"]  # predicted value function before udpate
+        atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
+        d = Dataset(dict(ob = ob, ac = ac, atarg = atarg, vtarg = tdlamret), shuffle = not pi.recurrent)
         optim_batchsize = optim_batchsize or ob.shape[0]
 
-        if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob) # update running mean/std for policy
+        if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob)  # update running mean/std for policy
 
-        assign_old_eq_new() # set old parameter values to new parameter values
+        assign_old_eq_new()  # set old parameter values to new parameter values
         # logger.log("Optimizing...")
         # logger.log(fmt_row(13, loss_names))
         # Here we do a bunch of optimization epochs over the data
         for _ in range(optim_epochs):
-            losses = [] # list of tuples, each of which gives the loss for a minibatch
+            losses = []  # list of tuples, each of which gives the loss for a minibatch
             for batch in d.iterate_once(optim_batchsize):
                 *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
                 adam.update(g, optim_stepsize * cur_lrmult)
