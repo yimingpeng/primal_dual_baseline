@@ -74,7 +74,7 @@ def learn(env, policy_fn, *,
 
     lrmult = tf.placeholder(name = 'lrmult', dtype = tf.float32,
                             shape = [])  # learning rate multiplier, updated with schedule
-    adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])  # Advantage function for RAC
+    # adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])  # Advantage function for RAC
 
     clip_param = clip_param * lrmult  # Annealed cliping parameter epislon
 
@@ -96,13 +96,15 @@ def learn(env, policy_fn, *,
     losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
     loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
 
-    pol_rac_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
-    pol_rac_losses = [pol_rac_loss]
-    pol_rac_loss_names = ["pol_rac_loss"]
-
     vf_rac_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target))
     vf_rac_losses = [vf_rac_loss]
     vf_rac_loss_names = ["vf_rac_loss"]
+
+    pol_rac_loss_surr1 = atarg * pi.pd.neglogp(ac) * ratio
+    pol_rac_loss_surr2 = tf.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg * pi.pd.neglogp(ac)  #
+    pol_rac_loss = tf.reduce_mean(tf.minimum(pol_rac_loss_surr1, pol_rac_loss_surr2))
+    pol_rac_losses = [pol_rac_loss]
+    pol_rac_loss_names = ["pol_rac_loss"]
 
     var_list = pi.get_trainable_variables()
 
@@ -131,7 +133,7 @@ def learn(env, policy_fn, *,
     vf_adam = MpiAdam(vf_final_var_list, epsilon = adam_epsilon)
 
     # Train Policy
-    pol_lossandgrad = U.function([ob, ac, adv, lrmult],
+    pol_lossandgrad = U.function([ob, ac, atarg, lrmult],
                                  pol_rac_losses + [U.flatgrad(pol_rac_loss, pol_final_var_list)])
     pol_adam = MpiAdam(pol_final_var_list, epsilon = adam_epsilon)
 
@@ -180,7 +182,7 @@ def learn(env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) / (max_timesteps / 2), 0)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / max_timesteps, 0)
         else:
             raise NotImplementedError
 
@@ -243,7 +245,7 @@ def learn(env, policy_fn, *,
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
             vf_adam.update(vf_g, rac_alpha)
-            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
+            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv.reshape(adv.shape[0], ),
                                               rac_beta)
             compatible_feature = np.array(
                 get_compatible_feature(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0]))))
@@ -271,12 +273,13 @@ def learn(env, policy_fn, *,
             ob = next_ob
             if new:
                 # Episode End Update
-                scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
-                coef = t/np.sum(scaling_factor)
-                sum_weighted_pol_gradients = np.sum([scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-                pol_adam.update(coef*sum_weighted_pol_gradients, rac_beta)
-                pol_gradients = []
-                t_0 = t
+                if len(pol_gradients) > 0:
+                    scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
+                    coef = t/np.sum(scaling_factor)
+                    sum_weighted_pol_gradients = np.sum([scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
+                    pol_adam.update(coef*sum_weighted_pol_gradients, rac_beta)
+                    pol_gradients = []
+                    t_0 = t
 
                 # print(
                 #     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
