@@ -42,7 +42,7 @@ class MlpPolicy(object):
                 mean = tf.layers.dense(last_out, pdtype.param_shape()[0] // 2, name = 'final',
                                        kernel_initializer = U.normc_initializer(0.01))
                 # logstd = tf.get_variable(name="logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
-                logstd = tf.multiply(tf.ones(shape=[1, pdtype.param_shape()[0]//2]), tf.constant(0.5))
+                logstd = tf.multiply(tf.ones(shape=[1, pdtype.param_shape()[0]//2]), tf.constant(0.5/ac_space.shape[0]))
                 pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
             else:
                 pdparam = tf.layers.dense(last_out, pdtype.param_shape()[0], name = 'final',
