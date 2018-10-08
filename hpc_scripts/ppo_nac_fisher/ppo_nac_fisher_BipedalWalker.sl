@@ -12,7 +12,6 @@
 #SBATCH --error=%A_%a.err
 #SBATCH --output=%A_%a.out
 
-bash
-export PATH=/home/yiming.peng/miniconda3/bin/:$PATH
-source activate cmaes_baselines
+srun export PATH=/home/yiming.peng/miniconda3/bin/:$PATH
+srun source activate cmaes_baselines
 python run_gym_ctrl.py --env BipedalWalker-v2 --seed $SLURM_ARRAY_TASK_ID
