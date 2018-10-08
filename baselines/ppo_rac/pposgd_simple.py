@@ -219,7 +219,7 @@ def learn(env, policy_fn, *,
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
             vf_adam.update(vf_g, rac_alpha)
-            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv.reshape((adv.shape[0]), ),
+            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv.reshape(adv.shape[0], ),
                                               rac_beta)
             pol_adam.update(pol_g, rac_beta)
 
