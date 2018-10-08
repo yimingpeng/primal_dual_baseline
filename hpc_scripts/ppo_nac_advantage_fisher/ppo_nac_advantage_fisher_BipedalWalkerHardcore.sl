@@ -2,7 +2,7 @@
 #SBATCH --job-name=ppo_nac_advantage_fisher_BipedalWalkerHardcore      # job name (shows up in the queue)
 #SBATCH --account=nesi00272     # Project Account
 #SBATCH --time=200:00:00         # Walltime (HH:MM:SS)
-#SBATCH -D /nesi/project/nesi00272/cmaes_baselines/baselines/ppo_nac_advantage_fisher/
+#SBATCH -D /nesi/project/nesi00272/cmaes_baselines/baselines/ddpg/
 #SBATCH --mem-per-cpu=4096      # memory/cpu (in MB)
 #SBATCH --ntasks=1  # number of tasks (e.g. MPI)
 #SBATCH --cpus-per-task=1  # number of cores per task (e.g. OpenMP)

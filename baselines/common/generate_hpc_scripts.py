@@ -37,7 +37,7 @@ for algorithm in algorithms:
             #         line = line.replace("cmaes_baselines", "ddpg_baselines")
             if '--job-name=ddpg_Walker2D' in line:
                 line = line.replace("--job-name=ddpg_Walker2D", "--job-name="+algorithm+"_"+problem)
-            if "/nesi/project/nesi00272/cmaes_baselines/baselines/ddpg/" in line:
+            if "/nesi/project/nesi00272/primal_dual_baseline/baselines/ddpg/" in line:
                 line = line.replace("ddpg",algorithm.lower())
             if '--error=ddpg_InvertedPendulum.err' in line:
                 line = line.replace("--error=ddpg_InvertedPendulum",
@@ -72,7 +72,7 @@ for algorithm in algorithms:
         for line in f:
             if '--job-name=ddpg_Walker2D' in line:
                 line = line.replace("--job-name=ddpg_Walker2D", "--job-name="+algorithm+"_"+problem)
-            if "/nesi/project/nesi00272/cmaes_baselines/baselines/ddpg/" in line:
+            if "/nesi/project/nesi00272/primal_dual_baseline/baselines/ddpg/" in line:
                 line = line.replace("ddpg",algorithm.lower())
             if "Walker2DBulletEnv-v0" in line:
                 if algorithm == "DDPG":
