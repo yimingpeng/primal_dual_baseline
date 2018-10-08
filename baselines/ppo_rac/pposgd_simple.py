@@ -158,7 +158,7 @@ def learn(env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult =  max(1.0 - float(timesteps_so_far) / (max_timesteps/2), 0)
+            cur_lrmult =  max(1.0 - float(timesteps_so_far) / (max_timesteps), 0)
         else:
             raise NotImplementedError
 
@@ -195,7 +195,7 @@ def learn(env, policy_fn, *,
             # before returning segment [0, T-1] so we get the correct
             # terminal value
             if t > 0 and t % horizon == 0:
-                seg = {"ob" : obs, "rew" : rews, "vpred" : vpreds, "adv" : advs,"new" : news,
+                seg = {"ob" : obs, "rew" : rews, "vpred" : vpreds, "new" : news,
                     "ac" : acs, "prevac" : prevacs, "nextvpred": vpred * (1 - new),
                     "ep_rets" : ep_rets, "ep_lens" : ep_lens}
                 ep_rets = []
