@@ -10,7 +10,6 @@ from collections import deque
 import itertools
 import collections
 
-
 def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
     t = 0
@@ -32,10 +31,9 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     prevacs = acs.copy()
 
     while True:
-        if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
-            result_record()
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
+        ac = np.clip(ac, -1.0, 1.0)
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value
@@ -53,14 +51,13 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         news[i] = new
         acs[i] = ac
         prevacs[i] = prevac
-        if env.spec._env_name == "LunarLanderContinuous":
-            ac = np.clip(ac, -1.0, 1.0)
         ob, rew, new, _ = env.step(ac)
+        # rew = np.clip(rew, -1., 1.)
         rews[i] = rew
 
         cur_ep_ret += rew
         cur_ep_len += 1
-        timesteps_so_far += 1
+        # timesteps_so_far += 1
         if new:
             ep_rets.append(cur_ep_ret)
             ep_lens.append(cur_ep_len)
@@ -108,7 +105,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
 
-def learn(env, policy_fn, *,
+def learn(env, test_env, policy_fn, *,
           timesteps_per_actorbatch,  # timesteps per actor per update
           clip_param, entcoeff,  # clipping parameter epsilon, entropy coeff
           optim_epochs, optim_stepsize, optim_batchsize,  # optimization hypers
@@ -175,6 +172,8 @@ def learn(env, policy_fn, *,
     # Prepare for rollouts
     # ----------------------------------------
 
+
+    seg_gen = traj_segment_generator(pi, test_env, timesteps_per_actorbatch, stochastic=False)
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer, best_fitness
     episodes_so_far = 0
@@ -203,11 +202,21 @@ def learn(env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) / (max_timesteps / 2), 0)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / max_timesteps, 0)
         else:
             raise NotImplementedError
 
         logger.log("********** Episode %i ************" % episodes_so_far)
+
+        if timesteps_so_far == 0:
+            # result_record()
+            seg = seg_gen.__next__()
+            lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
+            listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
+            lens, rews = map(flatten_lists, zip(*listoflrpairs))
+            lenbuffer.extend(lens)
+            rewbuffer.extend(rews)
+            result_record()
 
         ob = env.reset()
         # episode = []
@@ -221,11 +230,12 @@ def learn(env, policy_fn, *,
         pol_gradients = []
         for t in itertools.count():
             ac, vpred = pi.act(stochastic = True, ob = ob)
+            ac = np.clip(ac, -1., 1.)
 
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
-            cur_ep_ret += rew
+            cur_ep_ret += (rew - 1.0)
             cur_ep_len += 1
             timesteps_so_far += 1
 
@@ -249,7 +259,14 @@ def learn(env, policy_fn, *,
                 pol_gradients = []
                 t_0 = t
             ob = next_ob
-            if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
+            if timesteps_so_far % 10000 == 0:
+                # result_record()
+                seg = seg_gen.__next__()
+                lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
+                listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
+                lens, rews = map(flatten_lists, zip(*listoflrpairs))
+                lenbuffer.extend(lens)
+                rewbuffer.extend(rews)
                 result_record()
             if done:
                 if len(pol_gradients) > 0:
@@ -261,10 +278,7 @@ def learn(env, policy_fn, *,
                     t_0 = t
                 print(
                     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
-                ep_rets.append(cur_ep_ret)  # returns of completed episodes in this segment
-                ep_lens.append(cur_ep_len)  # lengths of ..
-                rewbuffer.extend(ep_rets)
-                lenbuffer.extend(ep_lens)
+
 
                 if hasattr(pi, "ob_rms"): pi.ob_rms.update(np.array(obs))  # update running mean/std for normalization
                 iters_so_far += 1

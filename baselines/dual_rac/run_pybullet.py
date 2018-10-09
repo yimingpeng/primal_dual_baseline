@@ -25,17 +25,19 @@ def train(env_id, num_timesteps, seed):
             hid_size=64, num_hid_layers=2)
 
     env = make_pybullet_env(env_id, seed)
-    rac_simple.learn(env,policy_fn,
+    test_env = make_pybullet_env(env_id, seed)
+    rac_simple.learn(env, test_env, policy_fn,
             max_timesteps=num_timesteps,
             timesteps_per_actorbatch=2048,
             clip_param=0.2, entcoeff=0.0,
-            optim_epochs=10, optim_stepsize=0.1, optim_batchsize=64,
+            optim_epochs=10, optim_stepsize=0.01, optim_batchsize=64,
             gamma=0.99, lam=0.95,
             rho = 0.95,  # Gradient weighting factor
-            update_step_threshold = 50, # Updating step threshold
+            update_step_threshold = 25, # Updating step threshold
                      schedule='linear'
         )
     env.close()
+    test_env.close()
 
 def main():
     args = pybullet_arg_parser().parse_args()
