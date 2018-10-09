@@ -251,7 +251,7 @@ def learn(env, test_env, policy_fn, *,
                                               optim_stepsize * cur_lrmult)
             pol_adam.update(pol_g, optim_stepsize * cur_lrmult * 0.1)
             ob = next_ob
-            if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
+            if timesteps_so_far % 10000 == 0:
                 # result_record()
                 seg = seg_gen.__next__()
                 lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
