@@ -43,7 +43,7 @@ class MlpPolicy(object):
                 # logstd = tf.get_variable(name="logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
                 # pdparam = tf.concat([mean, mean * 0.0 + tf.ones(pdtype.param_shape()[0])//2], axis = 1)
                 # logstd = tf.get_variable(name="logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
-                logstd = tf.multiply(tf.ones(shape=[1, pdtype.param_shape()[0]//2]), tf.constant(0.5/ac_space.shape[0]))
+                logstd = tf.multiply(tf.ones(shape=[1, pdtype.param_shape()[0]//2]), tf.constant(0.1/ac_space.shape[0]))
                 pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
             else:
                 pdparam = tf.layers.dense(last_out, pdtype.param_shape()[0], name = 'final',
@@ -60,6 +60,7 @@ class MlpPolicy(object):
 
     def act(self, stochastic, ob):
         ac1, vpred1 = self._act(stochastic, ob[None])
+        # ac1 = tf.clip_by_value(ac1, -1., 1.)
         return ac1[0], vpred1[0]
 
     def get_variables(self):
