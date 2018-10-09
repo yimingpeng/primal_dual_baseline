@@ -218,6 +218,16 @@ def learn(env, test_env, policy_fn, *,
 
         logger.log("********** Episode %i ************" % episodes_so_far)
 
+        if timesteps_so_far == 0:
+            # result_record()
+            seg = seg_gen.__next__()
+            lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
+            listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
+            lens, rews = map(flatten_lists, zip(*listoflrpairs))
+            lenbuffer.extend(lens)
+            rewbuffer.extend(rews)
+            result_record()
+
         ob = env.reset()
         # episode = []
         cur_ep_ret = 0  # return in current episode
