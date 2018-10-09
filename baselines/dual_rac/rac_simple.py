@@ -15,7 +15,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
     t = 0
     ac = env.action_space.sample()  # not used, just so we have the datatype
-    print(ac.shape)
+    # print(ac.shape)
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
 
@@ -281,7 +281,9 @@ def learn(env, test_env, policy_fn, *,
                     coef = t / np.sum(scaling_factor)
                     sum_weighted_pol_gradients = np.sum(
                         [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-                    pol_adam.update(coef * sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
+                    for i in range(optim_epochs):
+                        i = 0.9 ** i
+                        pol_adam.update(coef * sum_weighted_pol_gradients, i * optim_stepsize * 0.1 * cur_lrmult)
                     pol_gradients = []
                     t_0 = t
                 print(
