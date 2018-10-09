@@ -10,6 +10,7 @@ from collections import deque
 import itertools
 import collections
 
+
 def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
     t = 0
@@ -52,7 +53,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         acs[i] = ac
         prevacs[i] = prevac
         ob, rew, new, _ = env.step(ac)
-        # rew = np.clip(rew, -1., 1.)
+        rew = np.clip(rew, -1., 1.)
         rews[i] = rew
 
         cur_ep_ret += rew
@@ -70,6 +71,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
 def result_record():
     global lenbuffer, rewbuffer, iters_so_far, timesteps_so_far, \
         episodes_so_far, tstart
+    print(rewbuffer)
     if len(lenbuffer) == 0:
         mean_lenbuffer = 0
     else:
@@ -115,6 +117,7 @@ def learn(env, test_env, policy_fn, *,
           adam_epsilon = 1e-5,
           rho = 0.95,
           update_step_threshold = 100,
+          shift=0,
           schedule = 'constant'  # annealing for stepsize parameters (epsilon and adam)
           ):
     # Setup losses and stuff
@@ -172,8 +175,7 @@ def learn(env, test_env, policy_fn, *,
     # Prepare for rollouts
     # ----------------------------------------
 
-
-    seg_gen = traj_segment_generator(pi, test_env, timesteps_per_actorbatch, stochastic=False)
+    seg_gen = traj_segment_generator(pi, test_env, timesteps_per_actorbatch, stochastic = False)
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer, best_fitness
     episodes_so_far = 0
@@ -211,8 +213,8 @@ def learn(env, test_env, policy_fn, *,
         if timesteps_so_far == 0:
             # result_record()
             seg = seg_gen.__next__()
-            lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
-            listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
+            lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
+            listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
             lens, rews = map(flatten_lists, zip(*listoflrpairs))
             lenbuffer.extend(lens)
             rewbuffer.extend(rews)
@@ -234,8 +236,9 @@ def learn(env, test_env, policy_fn, *,
 
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
+            rew = np.clip(rew, -1., 1.)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
-            cur_ep_ret += (rew - 1.0)
+            cur_ep_ret += (rew - shift)
             cur_ep_len += 1
             timesteps_so_far += 1
 
@@ -253,17 +256,18 @@ def learn(env, test_env, policy_fn, *,
 
             if t % update_step_threshold == 0 and t > 0:
                 scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
-                coef = t/np.sum(scaling_factor)
-                sum_weighted_pol_gradients = np.sum([scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-                pol_adam.update(coef*sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
+                coef = t / np.sum(scaling_factor)
+                sum_weighted_pol_gradients = np.sum(
+                    [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
+                pol_adam.update(coef * sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
                 pol_gradients = []
                 t_0 = t
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
                 # result_record()
                 seg = seg_gen.__next__()
-                lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
-                listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
+                lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
+                listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
                 lens, rews = map(flatten_lists, zip(*listoflrpairs))
                 lenbuffer.extend(lens)
                 rewbuffer.extend(rews)
@@ -271,14 +275,14 @@ def learn(env, test_env, policy_fn, *,
             if done:
                 if len(pol_gradients) > 0:
                     scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
-                    coef = t/np.sum(scaling_factor)
-                    sum_weighted_pol_gradients = np.sum([scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-                    pol_adam.update(coef*sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
+                    coef = t / np.sum(scaling_factor)
+                    sum_weighted_pol_gradients = np.sum(
+                        [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
+                    pol_adam.update(coef * sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
                     pol_gradients = []
                     t_0 = t
                 print(
                     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
-
 
                 if hasattr(pi, "ob_rms"): pi.ob_rms.update(np.array(obs))  # update running mean/std for normalization
                 iters_so_far += 1
