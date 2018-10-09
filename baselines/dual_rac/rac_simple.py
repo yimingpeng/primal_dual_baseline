@@ -15,6 +15,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
     t = 0
     ac = env.action_space.sample()  # not used, just so we have the datatype
+    print(ac.shape)
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
 
@@ -53,7 +54,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         acs[i] = ac
         prevacs[i] = prevac
         ob, rew, new, _ = env.step(ac)
-        rew = np.clip(rew, -1., 1.)
+        # rew = np.clip(rew, -1., 1.)
         rews[i] = rew
 
         cur_ep_ret += rew
@@ -236,7 +237,7 @@ def learn(env, test_env, policy_fn, *,
 
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
-            rew = np.clip(rew, -1., 1.)
+            # rew = np.clip(rew, -1., 1.)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
             cur_ep_ret += (rew - shift)
             cur_ep_len += 1
