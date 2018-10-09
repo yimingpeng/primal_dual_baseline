@@ -75,26 +75,26 @@ def learn(env, policy_fn, *,
 
     ent = pi.pd.entropy()
 
-    pol_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
-    pol_losses = [pol_loss]
-    pol_loss_names = ["pol_loss"]
-
     vf_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target))
     vf_losses = [vf_loss]
     vf_loss_names = ["vf_loss"]
 
-    var_list = pi.get_trainable_variables()
-    # vf_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-    #     "vf")]
-    # pol_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-    #     "pol")]
+    pol_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
+    pol_losses = [pol_loss]
+    pol_loss_names = ["pol_loss"]
 
+    var_list = pi.get_trainable_variables()
     vf_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-        "vf") and v.name.split("/")[2].startswith(
-        "final")]
+        "vf")]
     pol_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
-        "pol") and v.name.split("/")[2].startswith(
-        "final")]
+        "pol")]
+
+    # vf_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
+    #     "vf") and v.name.split("/")[2].startswith(
+    #     "final")]
+    # pol_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
+    #     "pol") and v.name.split("/")[2].startswith(
+    #     "final")]
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
@@ -149,7 +149,7 @@ def learn(env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) / (max_timesteps / 2), 0)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / max_timesteps, 0)
         else:
             raise NotImplementedError
 
@@ -179,11 +179,11 @@ def learn(env, policy_fn, *,
 
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
-                                           cur_lrmult)
+                                           optim_stepsize * cur_lrmult)
             vf_adam.update(vf_g, optim_stepsize * cur_lrmult)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
-                                              cur_lrmult)
-            pol_adam.update(pol_g, optim_stepsize * 0.1 * cur_lrmult)
+                                              optim_stepsize * cur_lrmult)
+            pol_adam.update(pol_g, optim_stepsize * cur_lrmult * 0.1)
             ob = next_ob
             if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
                 result_record()
