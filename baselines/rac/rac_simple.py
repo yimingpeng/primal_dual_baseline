@@ -215,14 +215,18 @@ def learn(env, test_env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) /(0.5 * max_timesteps), 0)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) /(0.5 * max_timesteps), 1e-8)
         else:
             raise NotImplementedError
-
         logger.log("********** Episode %i ************" % episodes_so_far)
 
-        rac_alpha = optim_stepsize * cur_lrmult
-        rac_beta = optim_stepsize * cur_lrmult * 0.1
+        # rac_alpha = optim_stepsize * cur_lrmult
+        # rac_beta = optim_stepsize * cur_lrmult * 0.1
+        rac_alpha = optim_stepsize
+        rac_beta = optim_stepsize * 0.1
+
+        print("rac_alpha=", rac_alpha)
+        print("rac_beta=", rac_beta)
         if timesteps_so_far == 0:
             # result_record()
             seg = seg_gen.__next__()
