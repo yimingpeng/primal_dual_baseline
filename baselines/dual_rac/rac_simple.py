@@ -254,8 +254,8 @@ def learn(env, test_env, policy_fn, *,
             # if rew < -1.0 or rew > 1.0:
             #     print("rew=", rew)
             original_rew = rew
-            normalizer.update(rew)
-            rew = normalizer.normalize(rew)
+            # normalizer.update(rew)
+            # rew = normalizer.normalize(rew)
             # rew = np.clip(rew, -1., 1.)
             # rew = 1. - (1. - rew) ** 0.4
             cur_ep_ret += (original_rew - shift)
@@ -297,7 +297,7 @@ def learn(env, test_env, policy_fn, *,
                         [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
                     pol_adam.update(coef * sum_weighted_pol_gradients, rac_beta)
                     pol_gradients = []
-                    t_0 = t
+                    t_0 = 0
                 print(
                     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
 
