@@ -268,16 +268,17 @@ def learn(env, test_env, policy_fn, *,
                 sum_weighted_pol_gradients = np.sum(
                     [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
                 pol_adam.update(coef * sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
-                pol_gradients = []
-                t_0 = t - update_step_threshold
+                pol_gradients.pop(0)
+                t_0 = max(t - update_step_threshold, 0)
             elif t > update_step_threshold:
                 scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
                 coef = update_step_threshold / np.sum(scaling_factor)
                 sum_weighted_pol_gradients = np.sum(
                     [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
                 pol_adam.update(coef * sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
-                pol_gradients = []
-                t_0 = t - update_step_threshold
+                # pol_gradients = []
+                pol_gradients.pop(0)
+                t_0 = max(t - update_step_threshold, 0)
 
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
