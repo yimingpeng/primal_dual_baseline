@@ -243,6 +243,8 @@ def learn(env, test_env, policy_fn, *,
             # rew = np.clip(rew, -1., 1.)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
             # all_rewards.append(rew)
+            if rew < -1.0 or rew > 1.0:
+                print("rew=", rew)
             original_rew = rew
             normalizer.update(rew)
             rew = normalizer.normalize(rew)
