@@ -10,6 +10,9 @@ from collections import deque
 import itertools
 import collections
 
+from common.mpi_running_mean_std import RunningMeanStd
+from common.normalizer import Normalizer
+
 
 def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
@@ -130,6 +133,9 @@ def learn(env, test_env, policy_fn, *,
 
     lrmult = tf.placeholder(name = 'lrmult', dtype = tf.float32,
                             shape = [])  # learning rate multiplier, updated with schedule
+    reward = tf.placeholder(dtype = tf.float32, shape = [1, 1])  # instant reward
+    rms = RunningMeanStd(epsilon=0.0, shape=[1, 1])
+    normalized_reward = (reward - rms.mean) / rms.std
 
     ob = U.get_placeholder_cached(name = "ob")
     ac = pi.pdtype.sample_placeholder([None])
@@ -169,6 +175,7 @@ def learn(env, test_env, policy_fn, *,
 
     # Computation
     compute_v_pred = U.function([ob], [pi.vpred])
+    compute_norm_reward  = U.function([reward], [normalized_reward])
     # vf_update = U.function([ob, td_v_target], [vf_train_op])
     # pol_update = U.function([ob, ac, adv], [pol_train_op])
 
@@ -190,6 +197,7 @@ def learn(env, test_env, policy_fn, *,
     assert sum([max_iters > 0, max_timesteps > 0, max_episodes > 0,
                 max_seconds > 0]) == 1, "Only one time constraint permitted"
 
+    normalizer = Normalizer(1)
     # Step learning, this loop now indicates episodes
     while True:
         if callback: callback(locals(), globals())
@@ -239,7 +247,11 @@ def learn(env, test_env, policy_fn, *,
             next_ob, rew, done, _ = env.step(ac)
             # rew = np.clip(rew, -1., 1.)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
-            cur_ep_ret += (rew - shift)
+            # all_rewards.append(rew)
+            original_rew = rew
+            normalizer.update(rew)
+            rew = normalizer.normalize(rew)
+            cur_ep_ret += (original_rew - shift)
             cur_ep_len += 1
             timesteps_so_far += 1
 
