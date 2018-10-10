@@ -132,9 +132,6 @@ def learn(env, test_env, policy_fn, *,
 
     lrmult = tf.placeholder(name = 'lrmult', dtype = tf.float32,
                             shape = [])  # learning rate multiplier, updated with schedule
-    reward = tf.placeholder(dtype = tf.float32, shape = [1, 1])  # instant reward
-    rms = RunningMeanStd(epsilon=0.0, shape=[1, 1])
-    normalized_reward = (reward - rms.mean) / rms.std
 
     ob = U.get_placeholder_cached(name = "ob")
     ac = pi.pdtype.sample_placeholder([None])
