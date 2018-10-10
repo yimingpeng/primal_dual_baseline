@@ -31,7 +31,7 @@ def train(env_id, num_timesteps, seed):
             timesteps_per_actorbatch=2048,
             clip_param=0.2, entcoeff=0.0,
             optim_epochs=10, optim_stepsize=0.01, optim_batchsize=64,
-            gamma=0.99, lam=0.95, shift=1, schedule='linear'
+            gamma=0.99, lam=0.95, shift=0, schedule='linear'
         )
     env.close()
     test_env.close()

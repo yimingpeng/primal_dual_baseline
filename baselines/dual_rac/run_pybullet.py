@@ -34,7 +34,7 @@ def train(env_id, num_timesteps, seed):
             gamma=0.99, lam=0.95,
             rho = 0.95,  # Gradient weighting factor
             update_step_threshold = 25, # Updating step threshold
-                     shift = 1,
+                     shift = 0,
                      schedule='linear'
         )
     env.close()
