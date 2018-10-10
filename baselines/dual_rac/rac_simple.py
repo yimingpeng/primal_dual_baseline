@@ -132,11 +132,12 @@ def learn(env, test_env, policy_fn, *,
 
     lrmult = tf.placeholder(name = 'lrmult', dtype = tf.float32,
                             shape = [])  # learning rate multiplier, updated with schedule
-
     ob = U.get_placeholder_cached(name = "ob")
     ac = pi.pdtype.sample_placeholder([None])
     adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])
+    std_mult = tf.placeholder(dtype = tf.float32, shape = [])
 
+    pi.std = pi.std*std_mult
     ent = pi.pd.entropy()
 
     pol_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
@@ -168,9 +169,9 @@ def learn(env, test_env, policy_fn, *,
 
     # pol_optimizer = tf.train.AdamOptimizer(learning_rate = 0.1 * lrmult, epsilon = adam_epsilon)
     # pol_train_op = pol_optimizer.minimize(pol_loss, pol_var_list)
-
     # Computation
     compute_v_pred = U.function([ob], [pi.vpred])
+    adapt_std = U.function([std_mult], [pi.std])
     # vf_update = U.function([ob, td_v_target], [vf_train_op])
     # pol_update = U.function([ob, ac, adv], [pol_train_op])
 
@@ -193,6 +194,7 @@ def learn(env, test_env, policy_fn, *,
                 max_seconds > 0]) == 1, "Only one time constraint permitted"
 
     normalizer = Normalizer(1)
+    std = 1.0
     # Step learning, this loop now indicates episodes
     while True:
         if callback: callback(locals(), globals())
@@ -214,6 +216,7 @@ def learn(env, test_env, policy_fn, *,
 
         logger.log("********** Episode %i ************" % episodes_so_far)
 
+        print(adapt_std(cur_lrmult))
         rac_alpha = optim_stepsize * cur_lrmult
         rac_beta = optim_stepsize * cur_lrmult * 0.1
         if timesteps_so_far == 0:
@@ -247,10 +250,10 @@ def learn(env, test_env, policy_fn, *,
             # all_rewards.append(rew)
             # if rew < -1.0 or rew > 1.0:
             #     print("rew=", rew)
-            # original_rew = rew
-            # normalizer.update(original_rew)
-            # rew = normalizer.normalize(rew)
-            cur_ep_ret += (rew - shift)
+            original_rew = rew
+            normalizer.update(original_rew)
+            rew = normalizer.normalize(rew)
+            cur_ep_ret += (original_rew - shift)
             cur_ep_len += 1
             timesteps_so_far += 1
 
