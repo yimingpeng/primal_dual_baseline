@@ -42,6 +42,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         # before returning segment [0, T-1] so we get the correct
         # terminal value
         if t > 0 and t % horizon == 0 and ep_num >= 5:
+            ob = env.reset()
             yield {"ob": obs, "rew": rews, "vpred": vpreds, "new": news,
                    "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new),
                    "ep_rets": ep_rets, "ep_lens": ep_lens}
