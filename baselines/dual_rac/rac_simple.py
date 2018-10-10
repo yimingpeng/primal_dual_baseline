@@ -37,7 +37,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     while True:
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
-        ac = np.clip(ac, -1.0, 1.0)
+        ac = np.clip(ac, env.action_space.low, env.action_space.high)
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value
@@ -238,7 +238,7 @@ def learn(env, test_env, policy_fn, *,
         pol_gradients = []
         for t in itertools.count():
             ac, vpred = pi.act(stochastic = True, ob = ob)
-            ac = np.clip(ac, -1., 1.)
+            ac = np.clip(ac, ac_space.low, ac_space.high)
 
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
