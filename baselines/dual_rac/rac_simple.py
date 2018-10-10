@@ -135,9 +135,9 @@ def learn(env, test_env, policy_fn, *,
     ob = U.get_placeholder_cached(name = "ob")
     ac = pi.pdtype.sample_placeholder([None])
     adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])
-    std_mult = tf.placeholder(dtype = tf.float32, shape = [])
+    # std_mult = tf.placeholder(dtype = tf.float32, shape = [])
 
-    pi.std = pi.std*std_mult
+    # pi.std = pi.std*std_mult
     ent = pi.pd.entropy()
 
     pol_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
@@ -171,7 +171,7 @@ def learn(env, test_env, policy_fn, *,
     # pol_train_op = pol_optimizer.minimize(pol_loss, pol_var_list)
     # Computation
     compute_v_pred = U.function([ob], [pi.vpred])
-    adapt_std = U.function([std_mult], [pi.std])
+    # adapt_std = U.function([std_mult], [pi.std])
     # vf_update = U.function([ob, td_v_target], [vf_train_op])
     # pol_update = U.function([ob, ac, adv], [pol_train_op])
 
@@ -216,7 +216,7 @@ def learn(env, test_env, policy_fn, *,
 
         logger.log("********** Episode %i ************" % episodes_so_far)
 
-        print(adapt_std(cur_lrmult))
+        # print(adapt_std(cur_lrmult))
         rac_alpha = optim_stepsize * cur_lrmult
         rac_beta = optim_stepsize * cur_lrmult * 0.1
         if timesteps_so_far == 0:
@@ -250,10 +250,12 @@ def learn(env, test_env, policy_fn, *,
             # all_rewards.append(rew)
             # if rew < -1.0 or rew > 1.0:
             #     print("rew=", rew)
-            original_rew = rew
-            normalizer.update(original_rew)
-            rew = normalizer.normalize(rew)
-            cur_ep_ret += (original_rew - shift)
+            # original_rew = rew
+            # # normalizer.update(original_rew)
+            # # rew = normalizer.normalize(rew)
+            # rew = np.clip(rew, -1., 1.)
+            # rew = 1. - (1. - rew) ** 0.4
+            cur_ep_ret += (rew - shift)
             cur_ep_len += 1
             timesteps_so_far += 1
 
@@ -293,12 +295,12 @@ def learn(env, test_env, policy_fn, *,
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
                 # result_record()
-                seg = seg_gen.__next__()
-                lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
-                listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
-                lens, rews = map(flatten_lists, zip(*listoflrpairs))
-                lenbuffer.extend(lens)
-                rewbuffer.extend(rews)
+                # seg = seg_gen.__next__()
+                # lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
+                # listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
+                # lens, rews = map(flatten_lists, zip(*listoflrpairs))
+                # lenbuffer.extend(lens)
+                # rewbuffer.extend(rews)
                 result_record()
             if done:
                 if len(pol_gradients) > 0:
@@ -312,8 +314,8 @@ def learn(env, test_env, policy_fn, *,
                 print(
                     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
 
-                # lenbuffer.append(cur_ep_len)
-                # rewbuffer.append(cur_ep_ret)
+                lenbuffer.append(cur_ep_len)
+                rewbuffer.append(cur_ep_ret)
                 if hasattr(pi, "ob_rms"): pi.ob_rms.update(np.array(obs))  # update running mean/std for normalization
                 iters_so_far += 1
                 episodes_so_far += 1
