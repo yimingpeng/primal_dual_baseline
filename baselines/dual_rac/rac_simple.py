@@ -303,8 +303,8 @@ def learn(env, test_env, policy_fn, *,
                 print(
                     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
 
-                lenbuffer.append(cur_ep_len)
-                rewbuffer.append(cur_ep_ret)
+                # lenbuffer.append(cur_ep_len)
+                # rewbuffer.append(cur_ep_ret)
                 if hasattr(pi, "ob_rms"): pi.ob_rms.update(np.array(obs))  # update running mean/std for normalization
                 iters_so_far += 1
                 episodes_so_far += 1

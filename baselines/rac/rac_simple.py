@@ -283,8 +283,8 @@ def learn(env, test_env, policy_fn, *,
                 # ep_rets.append(cur_ep_ret)  # returns of completed episodes in this segment
                 # ep_lens.append(cur_ep_len)  # lengths of ..
 
-                lenbuffer.append(cur_ep_len)
-                rewbuffer.append(cur_ep_ret)
+                # lenbuffer.append(cur_ep_len)
+                # rewbuffer.append(cur_ep_ret)
 
                 if hasattr(pi, "ob_rms"): pi.ob_rms.update(np.array(obs))  # update running mean/std for normalization
                 iters_so_far += 1
