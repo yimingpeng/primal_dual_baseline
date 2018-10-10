@@ -10,6 +10,8 @@ from collections import deque
 import itertools
 import collections
 
+from baselines.common.normalizer import Normalizer
+
 
 def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
@@ -197,7 +199,7 @@ def learn(env, test_env, policy_fn, *,
 
     assert sum([max_iters > 0, max_timesteps > 0, max_episodes > 0,
                 max_seconds > 0]) == 1, "Only one time constraint permitted"
-
+    normalizer = Normalizer(1)
     # Step learning, this loop now indicates episodes
     while True:
         if callback: callback(locals(), globals())
@@ -246,7 +248,11 @@ def learn(env, test_env, policy_fn, *,
 
             rew = np.clip(rew, -1., 1.)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
-            cur_ep_ret += (rew - shift)
+
+            original_rew = rew
+            normalizer.update(rew)
+            rew = normalizer.normalize(rew)
+            cur_ep_ret += (original_rew - shift)
             cur_ep_len += 1
             timesteps_so_far += 1
 

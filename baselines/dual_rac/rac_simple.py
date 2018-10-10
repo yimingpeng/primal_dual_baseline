@@ -10,8 +10,7 @@ from collections import deque
 import itertools
 import collections
 
-from common.mpi_running_mean_std import RunningMeanStd
-from common.normalizer import Normalizer
+from baselines.common.normalizer import Normalizer
 
 
 def traj_segment_generator(pi, env, horizon, stochastic):
