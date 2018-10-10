@@ -257,7 +257,7 @@ def learn(env, test_env, policy_fn, *,
 
             if t % update_step_threshold == 0 and t > 0:
                 scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
-                coef = t / np.sum(scaling_factor)
+                coef = (t - t_0) / np.sum(scaling_factor)
                 sum_weighted_pol_gradients = np.sum(
                     [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
                 for i in range(optim_epochs):
@@ -278,7 +278,7 @@ def learn(env, test_env, policy_fn, *,
             if done:
                 if len(pol_gradients) > 0:
                     scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
-                    coef = t / np.sum(scaling_factor)
+                    coef = (t - t_0) / np.sum(scaling_factor)
                     sum_weighted_pol_gradients = np.sum(
                         [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
                     for i in range(optim_epochs):
