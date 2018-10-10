@@ -33,7 +33,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     news = np.zeros(horizon, 'int32')
     acs = np.array([ac for _ in range(horizon)])
     prevacs = acs.copy()
-
+    ep_num = 0
     while True:
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
@@ -41,7 +41,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value
-        if t > 0 and t % horizon == 0:
+        if t > 0 and t % horizon == 0 and ep_num >= 5:
             yield {"ob": obs, "rew": rews, "vpred": vpreds, "new": news,
                    "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new),
                    "ep_rets": ep_rets, "ep_lens": ep_lens}
@@ -49,6 +49,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
             # several of these batches, then be sure to do a deepcopy
             ep_rets = []
             ep_lens = []
+            ep_num = 0
         i = t % horizon
         obs[i] = ob
         vpreds[i] = vpred
@@ -63,6 +64,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         cur_ep_len += 1
         # timesteps_so_far += 1
         if new:
+            ep_num += 1
             ep_rets.append(cur_ep_ret)
             ep_lens.append(cur_ep_len)
             cur_ep_ret = 0
@@ -239,6 +241,7 @@ def learn(env, test_env, policy_fn, *,
         obs = []
         t_0 = 0
         pol_gradients = []
+        record = False
         for t in itertools.count():
             ac, vpred = pi.act(stochastic = True, ob = ob)
             ac = np.clip(ac, ac_space.low, ac_space.high)
@@ -250,9 +253,9 @@ def learn(env, test_env, policy_fn, *,
             # all_rewards.append(rew)
             # if rew < -1.0 or rew > 1.0:
             #     print("rew=", rew)
-            # original_rew = rew
-            # # normalizer.update(original_rew)
-            # # rew = normalizer.normalize(rew)
+            original_rew = rew
+            normalizer.update(original_rew)
+            rew = normalizer.normalize(rew)
             # rew = np.clip(rew, -1., 1.)
             # rew = 1. - (1. - rew) ** 0.4
             cur_ep_ret += (rew - shift)
@@ -282,26 +285,10 @@ def learn(env, test_env, policy_fn, *,
                 pol_adam.update(coef * sum_weighted_pol_gradients, rac_beta)
                 pol_gradients = []
                 t_0 = t
-            # elif t > update_step_threshold:
-            #     scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
-            #     coef = update_step_threshold / np.sum(scaling_factor)
-            #     sum_weighted_pol_gradients = np.sum(
-            #         [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-            #     pol_adam.update(coef * sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
-            #     # pol_gradients = []
-            #     pol_gradients.pop(0)
-            #     t_0 = max(t - update_step_threshold, 0)
 
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
-                # result_record()
-                # seg = seg_gen.__next__()
-                # lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
-                # listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
-                # lens, rews = map(flatten_lists, zip(*listoflrpairs))
-                # lenbuffer.extend(lens)
-                # rewbuffer.extend(rews)
-                result_record()
+                record = True
             if done:
                 if len(pol_gradients) > 0:
                     scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
@@ -319,6 +306,15 @@ def learn(env, test_env, policy_fn, *,
                 if hasattr(pi, "ob_rms"): pi.ob_rms.update(np.array(obs))  # update running mean/std for normalization
                 iters_so_far += 1
                 episodes_so_far += 1
+                if record:
+                    seg = seg_gen.__next__()
+                    lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
+                    listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
+                    lens, rews = map(flatten_lists, zip(*listoflrpairs))
+                    lenbuffer.extend(lens)
+                    rewbuffer.extend(rews)
+                    result_record()
+                    record = False
                 break
 
 
