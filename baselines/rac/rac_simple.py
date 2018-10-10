@@ -215,15 +215,13 @@ def learn(env, test_env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) /(0.5 * max_timesteps), 1e-8)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) /max_timesteps, 1e-8)
         else:
             raise NotImplementedError
         logger.log("********** Episode %i ************" % episodes_so_far)
 
-        # rac_alpha = optim_stepsize * cur_lrmult
-        # rac_beta = optim_stepsize * cur_lrmult * 0.1
-        rac_alpha = optim_stepsize
-        rac_beta = optim_stepsize * 0.1
+        rac_alpha = optim_stepsize * cur_lrmult
+        rac_beta = optim_stepsize * cur_lrmult * 0.1
         #
         # print("rac_alpha=", rac_alpha)
         # print("rac_beta=", rac_beta)
@@ -255,10 +253,10 @@ def learn(env, test_env, policy_fn, *,
             rew = np.clip(rew, -1., 1.)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
 
-            original_rew = rew
-            normalizer.update(rew)
-            rew = normalizer.normalize(rew)
-            cur_ep_ret += (original_rew - shift)
+            # original_rew = rew
+            # normalizer.update(rew)
+            # rew = normalizer.normalize(rew)
+            cur_ep_ret += (rew - shift)
             cur_ep_len += 1
             timesteps_so_far += 1
 

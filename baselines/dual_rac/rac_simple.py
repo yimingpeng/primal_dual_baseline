@@ -208,16 +208,14 @@ def learn(env, test_env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) / (0.5 * max_timesteps), 0)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / max_timesteps, 1e-8)
         else:
             raise NotImplementedError
 
         logger.log("********** Episode %i ************" % episodes_so_far)
 
-        # rac_alpha = optim_stepsize * cur_lrmult
-        # rac_beta = optim_stepsize * cur_lrmult * 0.1
-        rac_alpha = optim_stepsize
-        rac_beta = optim_stepsize * 0.1
+        rac_alpha = optim_stepsize * cur_lrmult
+        rac_beta = optim_stepsize * cur_lrmult * 0.1
         if timesteps_so_far == 0:
             # result_record()
             seg = seg_gen.__next__()
@@ -249,15 +247,17 @@ def learn(env, test_env, policy_fn, *,
             # all_rewards.append(rew)
             # if rew < -1.0 or rew > 1.0:
             #     print("rew=", rew)
-            original_rew = rew
-            normalizer.update(rew)
-            rew = normalizer.normalize(rew)
-            cur_ep_ret += (original_rew - shift)
+            # original_rew = rew
+            # normalizer.update(original_rew)
+            # rew = normalizer.normalize(rew)
+            cur_ep_ret += (rew - shift)
             cur_ep_len += 1
             timesteps_so_far += 1
 
             # Compute v target and TD
-            v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
+            v_now = np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
+            # logger.log("vnow="+str(v_now[0])+"\n")
+            v_target = rew + gamma * v_now
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
 
             # Update V and Update Policy
