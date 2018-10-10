@@ -171,7 +171,6 @@ def learn(env, test_env, policy_fn, *,
 
     # Computation
     compute_v_pred = U.function([ob], [pi.vpred])
-    compute_norm_reward  = U.function([reward], [normalized_reward])
     # vf_update = U.function([ob, td_v_target], [vf_train_op])
     # pol_update = U.function([ob, ac, adv], [pol_train_op])
 
