@@ -262,7 +262,7 @@ def learn(env, test_env, policy_fn, *,
                                               optim_stepsize * 0.1 * cur_lrmult)
             pol_gradients.append(pol_g)
 
-            if t % update_step_threshold == 0 and t > 0:
+            if t == update_step_threshold:
                 scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
                 coef = update_step_threshold / np.sum(scaling_factor)
                 sum_weighted_pol_gradients = np.sum(
