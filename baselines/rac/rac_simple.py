@@ -300,7 +300,6 @@ def learn(env, test_env, policy_fn, *,
                     rewbuffer.extend(rews)
                     result_record()
                     record = False
-                ob = env.reset()
                 break
 
 
