@@ -214,6 +214,8 @@ def learn(env, test_env, policy_fn, *,
 
         logger.log("********** Episode %i ************" % episodes_so_far)
 
+        rac_alpha = optim_stepsize * cur_lrmult
+        rac_beta = optim_stepsize * cur_lrmult * 0.01
         if timesteps_so_far == 0:
             # result_record()
             seg = seg_gen.__next__()
@@ -258,10 +260,10 @@ def learn(env, test_env, policy_fn, *,
 
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
-                                           optim_stepsize * cur_lrmult)
-            vf_adam.update(vf_g, optim_stepsize * cur_lrmult)
+                                           rac_alpha)
+            vf_adam.update(vf_g, rac_alpha)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
-                                              optim_stepsize * 0.1 * cur_lrmult)
+                                              rac_beta)
             pol_gradients.append(pol_g)
 
             # if t == update_step_threshold:
@@ -270,7 +272,7 @@ def learn(env, test_env, policy_fn, *,
                 coef = update_step_threshold / np.sum(scaling_factor)
                 sum_weighted_pol_gradients = np.sum(
                     [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-                pol_adam.update(coef * sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
+                pol_adam.update(coef * sum_weighted_pol_gradients, rac_beta)
                 pol_gradients = []
                 t_0 = t
             # elif t > update_step_threshold:
@@ -299,7 +301,7 @@ def learn(env, test_env, policy_fn, *,
                     coef = (t - t_0) / np.sum(scaling_factor)
                     sum_weighted_pol_gradients = np.sum(
                         [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-                    pol_adam.update(coef * sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
+                    pol_adam.update(coef * sum_weighted_pol_gradients, rac_beta)
                     pol_gradients = []
                     t_0 = t
                 print(

@@ -221,6 +221,8 @@ def learn(env, test_env, policy_fn, *,
 
         logger.log("********** Episode %i ************" % episodes_so_far)
 
+        rac_alpha = optim_stepsize * cur_lrmult
+        rac_beta = optim_stepsize * cur_lrmult * 0.01
         if timesteps_so_far == 0:
             # result_record()
             seg = seg_gen.__next__()
@@ -262,11 +264,11 @@ def learn(env, test_env, policy_fn, *,
 
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
-                                           optim_stepsize * cur_lrmult)
-            vf_adam.update(vf_g, optim_stepsize * cur_lrmult)
+                                           rac_alpha)
+            vf_adam.update(vf_g, rac_alpha)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
-                                              optim_stepsize * cur_lrmult)
-            pol_adam.update(pol_g, optim_stepsize * cur_lrmult * 0.1)
+                                              rac_beta)
+            pol_adam.update(pol_g, rac_beta)
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
                 # result_record()
