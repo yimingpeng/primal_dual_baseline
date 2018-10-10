@@ -181,7 +181,7 @@ def learn(env, test_env, policy_fn, *,
     # Prepare for rollouts
     # ----------------------------------------
 
-    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic = False)
+    seg_gen = traj_segment_generator(pi, test_env, timesteps_per_actorbatch, stochastic = False)
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer, best_fitness
     episodes_so_far = 0
@@ -254,8 +254,8 @@ def learn(env, test_env, policy_fn, *,
             # if rew < -1.0 or rew > 1.0:
             #     print("rew=", rew)
             original_rew = rew
-            # normalizer.update(rew)
-            # rew = normalizer.normalize(rew)
+            normalizer.update(rew)
+            rew = normalizer.normalize(rew)
             # rew = np.clip(rew, -1., 1.)
             # rew = 1. - (1. - rew) ** 0.4
             cur_ep_ret += (original_rew - shift)
@@ -316,7 +316,6 @@ def learn(env, test_env, policy_fn, *,
                     rewbuffer.extend(rews)
                     result_record()
                     record = False
-                ob = env.reset()
                 break
 
 
