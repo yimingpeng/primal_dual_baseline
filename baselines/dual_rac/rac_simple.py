@@ -262,7 +262,7 @@ def learn(env, test_env, policy_fn, *,
                     [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
                 pol_adam.update(coef * sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
                 pol_gradients.pop(0)
-                t_0 = t
+                t_0 = t - update_step_threshold
             elif t > update_step_threshold:
                 scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
                 coef = update_step_threshold / np.sum(scaling_factor)
