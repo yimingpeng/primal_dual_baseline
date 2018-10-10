@@ -18,7 +18,7 @@ from baselines import logger
 
 
 def train(env_id, num_timesteps, seed):
-    from baselines.dual_rac import mlp_policy, rac_simple
+    from baselines.rac import mlp_policy, rac_simple
     U.make_session(num_cpu=1).__enter__()
     def policy_fn(name, ob_space, ac_space):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
@@ -30,12 +30,8 @@ def train(env_id, num_timesteps, seed):
             max_timesteps=num_timesteps,
             timesteps_per_actorbatch=2048,
             clip_param=0.2, entcoeff=0.0,
-            optim_epochs=1, optim_stepsize=0.01, optim_batchsize=64,
-            gamma=0.99, lam=0.95,
-            rho = 0.95,  # Gradient weighting factor
-            update_step_threshold = 25, # Updating step threshold
-                     shift = 1,
-                     schedule='linear'
+            optim_epochs=10, optim_stepsize=0.01, optim_batchsize=64,
+            gamma=0.99, lam=0.95, shift=0, schedule='linear'
         )
     env.close()
     test_env.close()
