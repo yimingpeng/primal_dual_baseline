@@ -256,10 +256,10 @@ def learn(env, test_env, policy_fn, *,
 
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
-                                           cur_lrmult)
+                                           optim_stepsize * cur_lrmult)
             vf_adam.update(vf_g, optim_stepsize * cur_lrmult)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
-                                              cur_lrmult)
+                                              optim_stepsize * 0.1 * cur_lrmult)
             pol_gradients.append(pol_g)
 
             if t % update_step_threshold == 0 and t > 0:
@@ -267,9 +267,7 @@ def learn(env, test_env, policy_fn, *,
                 coef = update_step_threshold / np.sum(scaling_factor)
                 sum_weighted_pol_gradients = np.sum(
                     [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-                for i in range(optim_epochs):
-                    i = lam ** i
-                    pol_adam.update(coef * sum_weighted_pol_gradients, i * optim_stepsize * 0.1 * cur_lrmult)
+                pol_adam.update(coef * sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
                 pol_gradients = []
                 t_0 = t
             ob = next_ob
@@ -288,9 +286,7 @@ def learn(env, test_env, policy_fn, *,
                     coef = (t - t_0) / np.sum(scaling_factor)
                     sum_weighted_pol_gradients = np.sum(
                         [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-                    for i in range(optim_epochs):
-                        i = lam ** i
-                        pol_adam.update(coef * sum_weighted_pol_gradients, i * optim_stepsize * 0.1 * cur_lrmult)
+                    pol_adam.update(coef * sum_weighted_pol_gradients, optim_stepsize * 0.1 * cur_lrmult)
                     pol_gradients = []
                     t_0 = t
                 print(
