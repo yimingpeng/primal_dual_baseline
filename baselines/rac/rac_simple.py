@@ -32,6 +32,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     news = np.zeros(horizon, 'int32')
     acs = np.array([ac for _ in range(horizon)])
     prevacs = acs.copy()
+    ep_num = 0
 
     while True:
         prevac = ac
@@ -40,7 +41,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value
-        if t > 0 and t % horizon == 0:
+        if t > 0 and t % horizon == 0 and ep_num >= 5:
             yield {"ob": obs, "rew": rews, "vpred": vpreds, "new": news,
                    "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new),
                    "ep_rets": ep_rets, "ep_lens": ep_lens}
@@ -48,6 +49,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
             # several of these batches, then be sure to do a deepcopy
             ep_rets = []
             ep_lens = []
+            ep_num = 0
         i = t % horizon
         obs[i] = ob
         vpreds[i] = vpred
@@ -62,6 +64,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         cur_ep_len += 1
         # timesteps_so_far += 1
         if new:
+            ep_num += 1
             ep_rets.append(cur_ep_ret)
             ep_lens.append(cur_ep_len)
             cur_ep_ret = 0
@@ -185,7 +188,7 @@ def learn(env, test_env, policy_fn, *,
     # Prepare for rollouts
     # ----------------------------------------
 
-    seg_gen = traj_segment_generator(pi, test_env, timesteps_per_actorbatch, stochastic=False)
+    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic=False)
 
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer, best_fitness
@@ -243,6 +246,7 @@ def learn(env, test_env, policy_fn, *,
         ep_lens = []  # lengths of ...
 
         obs = []
+        record = False
         for t in itertools.count():
             ac, vpred = pi.act(stochastic = True, ob = ob)
             ac = np.clip(ac, ac_space.low, ac_space.high)
@@ -273,14 +277,7 @@ def learn(env, test_env, policy_fn, *,
             pol_adam.update(pol_g, rac_beta)
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
-                # result_record()
-                seg = seg_gen.__next__()
-                lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
-                listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
-                lens, rews = map(flatten_lists, zip(*listoflrpairs))
-                lenbuffer.extend(lens)
-                rewbuffer.extend(rews)
-                result_record()
+                record = True
             if done:
                 print(
                     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
@@ -293,6 +290,15 @@ def learn(env, test_env, policy_fn, *,
                 if hasattr(pi, "ob_rms"): pi.ob_rms.update(np.array(obs))  # update running mean/std for normalization
                 iters_so_far += 1
                 episodes_so_far += 1
+                if record:
+                    seg = seg_gen.__next__()
+                    lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
+                    listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
+                    lens, rews = map(flatten_lists, zip(*listoflrpairs))
+                    lenbuffer.extend(lens)
+                    rewbuffer.extend(rews)
+                    result_record()
+                    record = False
                 break
 
 
