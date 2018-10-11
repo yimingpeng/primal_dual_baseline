@@ -142,7 +142,7 @@ def learn(env, policy_fn, *,
     # pi.std = pi.std*std_mult
     ent = pi.pd.entropy()
 
-    pol_loss = 0.9*tf.reduce_mean(adv * pi.pd.neglogp(ac))
+    pol_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
     pol_losses = [pol_loss]
     pol_loss_names = ["pol_loss"]
 

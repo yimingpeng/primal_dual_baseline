@@ -140,7 +140,7 @@ def learn(env, policy_fn, *,
 
     ent = pi.pd.entropy()
 
-    vf_loss = 0.5 * tf.reduce_mean(tf.square(pi.vpred - td_v_target))
+    vf_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target))
     vf_losses = [vf_loss]
     vf_loss_names = ["vf_loss"]
 
@@ -218,7 +218,7 @@ def learn(env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) /max_timesteps, 1e-8)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / (0.5 * max_timesteps), 1e-8)
         else:
             raise NotImplementedError
         logger.log("********** Episode %i ************" % episodes_so_far)
