@@ -140,7 +140,7 @@ def learn(env, test_env, policy_fn, *,
 
     ent = pi.pd.entropy()
 
-    vf_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target))
+    vf_loss = 0.5 * tf.reduce_mean(tf.square(pi.vpred - td_v_target))
     vf_losses = [vf_loss]
     vf_loss_names = ["vf_loss"]
 
