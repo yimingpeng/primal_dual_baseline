@@ -146,7 +146,7 @@ def learn(env, test_env, policy_fn, *,
     pol_losses = [pol_loss]
     pol_loss_names = ["pol_loss"]
 
-    vf_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target))
+    vf_loss = 0.5 * tf.reduce_mean(tf.square(pi.vpred - td_v_target))
     vf_losses = [vf_loss]
     vf_loss_names = ["vf_loss"]
 
