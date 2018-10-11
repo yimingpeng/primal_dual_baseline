@@ -70,6 +70,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
 def result_record():
     global lenbuffer, rewbuffer, iters_so_far, timesteps_so_far, \
         episodes_so_far, tstart
+    print(np.random.get_state()[1][0])
     if len(lenbuffer) == 0:
         mean_lenbuffer = 0
     else:
@@ -115,9 +116,12 @@ def learn(env, policy_fn, *,
         ):
     # Setup losses and stuff
     # ----------------------------------------
+
     ob_space = env.observation_space
     ac_space = env.action_space
     pi = policy_fn("pi", ob_space, ac_space) # Construct network for new policy
+    # import numpy as np
+    print(np.random.get_state()[1][0])
     oldpi = policy_fn("oldpi", ob_space, ac_space) # Network for old policy
     atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
