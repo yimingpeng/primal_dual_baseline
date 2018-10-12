@@ -271,11 +271,9 @@ def learn(env, policy_fn, *,
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
-            # vf_g_clip = tf.clip_by_norm(vf_g, 5.0)
             vf_adam.update(vf_g, rac_alpha)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
                                               rac_beta)
-            pol_g_clip = tf.clip_by_norm(pol_g, 5.0)
             pol_adam.update(pol_g, rac_beta)
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
