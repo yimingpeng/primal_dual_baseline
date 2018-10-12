@@ -26,7 +26,13 @@ class MlpPolicy(object):
             self.ob_rms = RunningMeanStd(shape = ob_space.shape)
 
         with tf.variable_scope('vf'):
-            obz = tf.clip_by_value((ob - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
+            beta = 0.9
+            # Add gaussian RBF
+            # obz = tf.clip_by_value(tf.exp(-beta*tf.square(tf.norm(ob - self.ob_rms.mean))), -5.0, 5.0)
+
+            obz = tf.clip_by_value(tf.exp(-beta*tf.squared_difference(ob, self.ob_rms.mean)), -5.0, 5.0)
+
+
             last_out = obz
             # for i in range(num_hid_layers):
                 # last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name = "fc%i" % (i + 1),
