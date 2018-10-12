@@ -163,7 +163,7 @@ def learn(env, policy_fn, *,
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
-                                vf_losses + [U.flatgrad(vf_loss, vf_var_list)])
+                                vf_losses + [U.flatgrad(vf_loss, vf_var_list, 5.0)])
     vf_adam = MpiAdam(vf_var_list, epsilon = adam_epsilon)
 
     # vf_optimizer = tf.train.AdamOptimizer(learning_rate = lrmult, epsilon = adam_epsilon)
@@ -171,7 +171,7 @@ def learn(env, policy_fn, *,
 
     # Train Policy
     pol_lossandgrad = U.function([ob, ac, adv, lrmult],
-                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list)])
+                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list, 5.0)])
     pol_adam = MpiAdam(pol_var_list, epsilon = adam_epsilon)
 
     # pol_optimizer = tf.train.AdamOptimizer(learning_rate = 0.1 * lrmult, epsilon = adam_epsilon)
@@ -271,10 +271,12 @@ def learn(env, policy_fn, *,
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
+            # vf_g_clip = tf.clip_by_norm(vf_g, 5.0)
             vf_adam.update(vf_g, rac_alpha)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
                                               rac_beta)
-            pol_adam.update(pol_g, rac_beta)
+            pol_g_clip = tf.clip_by_norm(pol_g, 5.0)
+            # pol_adam.update(pol_g, rac_beta)
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
                 record = True
