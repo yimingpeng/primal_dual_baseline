@@ -10,6 +10,8 @@ from collections import deque
 import itertools
 import collections
 
+from common.normalizer import Normalizer
+
 
 def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
@@ -203,6 +205,8 @@ def learn(env, policy_fn, *,
                 max_seconds > 0]) == 1, "Only one time constraint permitted"
     normalizer = Normalizer(1)
     # Step learning, this loop now indicates episodes
+    k = 1.0
+    G_t_inv = [k * np.eye(get_pol_weights_num)]
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -263,18 +267,19 @@ def learn(env, policy_fn, *,
             cur_ep_ret += (original_rew - shift)
             cur_ep_len += 1
             timesteps_so_far += 1
-
             # Compute v target and TD
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
 
+            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0], np.array([rac_alpha]))
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
             vf_adam.update(vf_g, rac_alpha)
-            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
+            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv.reshape(adv.shape[0], ),
                                               rac_beta)
-            pol_adam.update(pol_g, rac_beta)
+            pol_adam.update(G_t_inv[0].dot(pol_g), rac_beta)
+
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
                 record = True
