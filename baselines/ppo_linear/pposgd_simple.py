@@ -8,6 +8,45 @@ from baselines.common.mpi_moments import mpi_moments
 from mpi4py import MPI
 from collections import deque
 
+def traj_segment_generator_eval(pi, env, horizon, stochastic):
+    t = 0
+    ob = env.reset()
+
+    cur_ep_ret = 0  # return in current episode
+    cur_ep_len = 0  # len of current episode
+    ep_rets = []  # returns of completed episodes in this segment
+    ep_lens = []  # lengths of ...
+    ep_num = 0
+    while True:
+        ac, vpred= pi.act(stochastic, ob)
+        ac = np.clip(ac, -1., 1.)
+        # Slight weirdness here because we need value function at time T
+        # before returning segment [0, T-1] so we get the correct
+        # terminal value
+        if t > 0 and t % horizon == 0 and ep_num >= 5:
+            yield {"ep_rets": ep_rets, "ep_lens": ep_lens}
+            # Be careful!!! if you change the downstream algorithm to aggregate
+            # several of these batches, then be sure to do a deepcopy
+            ep_rets = []
+            ep_lens = []
+            ep_num = 0
+            cur_ep_ret = 0
+            cur_ep_len = 0
+
+
+        ob, rew, new, _ = env.step(ac)
+        rew = np.clip(rew, -1., 1.)
+
+        cur_ep_ret += rew
+        cur_ep_len += 1
+        if new:
+            ep_num += 1
+            ep_rets.append(cur_ep_ret)
+            ep_lens.append(cur_ep_len)
+            cur_ep_ret = 0
+            cur_ep_len = 0
+            ob = env.reset()
+        t += 1
 
 def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
@@ -28,16 +67,21 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     news = np.zeros(horizon, 'int32')
     acs = np.array([ac for _ in range(horizon)])
     prevacs = acs.copy()
-
+    record = False
     while True:
         if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
-            result_record()
+            # result_record()
+            record = True
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
+        ac = np.clip(ac, env.action_space.low, env.action_space.high)
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value
         if t > 0 and t % horizon == 0:
+            if record:
+                result_record()
+                record = False
             yield {"ob" : obs, "rew" : rews, "vpred" : vpreds, "new" : news,
                     "ac" : acs, "prevac" : prevacs, "nextvpred": vpred * (1 - new),
                     "ep_rets" : ep_rets, "ep_lens" : ep_lens}
@@ -45,14 +89,14 @@ def traj_segment_generator(pi, env, horizon, stochastic):
             # several of these batches, then be sure to do a deepcopy
             ep_rets = []
             ep_lens = []
+            cur_ep_ret = 0
+            cur_ep_len = 0
         i = t % horizon
         obs[i] = ob
         vpreds[i] = vpred
         news[i] = new
         acs[i] = ac
         prevacs[i] = prevac
-        if env.spec._env_name == "LunarLanderContinuous":
-            ac = np.clip(ac, -1.0, 1.0)
         ob, rew, new, _ = env.step(ac)
         rews[i] = rew
 
@@ -60,6 +104,9 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         cur_ep_len += 1
         timesteps_so_far+=1
         if new:
+            if record:
+                result_record()
+                record = False
             ep_rets.append(cur_ep_ret)
             ep_lens.append(cur_ep_len)
             cur_ep_ret = 0
@@ -70,7 +117,8 @@ def traj_segment_generator(pi, env, horizon, stochastic):
 def result_record():
     global lenbuffer, rewbuffer, iters_so_far, timesteps_so_far, \
         episodes_so_far, tstart
-    print(np.random.get_state()[1][0])
+    # print(np.random.get_state()[1][0])
+    print(rewbuffer)
     if len(lenbuffer) == 0:
         mean_lenbuffer = 0
     else:
@@ -121,7 +169,7 @@ def learn(env, policy_fn, *,
     ac_space = env.action_space
     pi = policy_fn("pi", ob_space, ac_space) # Construct network for new policy
     # import numpy as np
-    print(np.random.get_state()[1][0])
+    # print(np.random.get_state()[1][0])
     oldpi = policy_fn("oldpi", ob_space, ac_space) # Network for old policy
     atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
@@ -160,6 +208,7 @@ def learn(env, policy_fn, *,
 
     # Prepare for rollouts
     # ----------------------------------------
+    eval_gen = traj_segment_generator_eval(pi, env, timesteps_per_actorbatch, stochastic=False)
     seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic=True)
 
     global timesteps_so_far, episodes_so_far, iters_so_far, \
@@ -192,12 +241,16 @@ def learn(env, policy_fn, *,
             raise NotImplementedError
 
         logger.log("********** Iteration %i ************"%iters_so_far)
-        seg = seg_gen.__next__()
-        lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
+        eval_seg = eval_gen.__next__()
+        lrlocal = (eval_seg["ep_lens"], eval_seg["ep_rets"]) # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
+        if timesteps_so_far == 0:
+            result_record()
+
+        seg = seg_gen.__next__()
 
         add_vtarg_and_adv(seg, gamma, lam)
 
@@ -221,7 +274,7 @@ def learn(env, policy_fn, *,
                 adam.update(g, optim_stepsize * cur_lrmult)
                 losses.append(newlosses)
             # logger.log(fmt_row(13, np.mean(losses, axis=0)))
-        # logger.log("Current Iteration Training Performance:" + str(np.mean(seg["ep_rets"])))
+        logger.log("Current Iteration Training Performance:" + str(np.mean(seg["ep_rets"])))
         # logger.log("Evaluating losses...")
         # losses = []
         # for batch in d.iterate_once(optim_batchsize):
@@ -237,8 +290,8 @@ def learn(env, policy_fn, *,
         # logger.record_tabular("EpThisIter", len(lens))
         episodes_so_far += len(lens)
         # timesteps_so_far += sum(lens)
-        if iters_so_far == 0:
-            result_record()
+        # if iters_so_far == 0:
+        #     result_record()
         iters_so_far += 1
         # logger.record_tabular("EpisodesSoFar", episodes_so_far)
         # logger.record_tabular("TimestepsSoFar", timesteps_so_far)
