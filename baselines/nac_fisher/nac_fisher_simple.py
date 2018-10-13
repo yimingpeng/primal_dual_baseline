@@ -118,6 +118,7 @@ def learn(env, policy_fn, *,
           max_timesteps = 0, max_episodes = 0, max_iters = 0, max_seconds = 0,  # time constraint
           callback = None,  # you can do anything in the callback, since it takes locals(), globals()
           adam_epsilon = 1e-5,
+          shift = 0,
           schedule = 'constant'  # annealing for stepsize parameters (epsilon and adam)
           ):
     # Setup losses and stuff
@@ -185,20 +186,8 @@ def learn(env, policy_fn, *,
     pol_adam.sync()
     # Prepare for rollouts
     # ----------------------------------------
-    global cur_lrmult
-    cur_lrmult = 1.0
-    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch,
-                                     vf_lossandgrad,
-                                     vf_adam,
-                                     pol_lossandgrad,
-                                     pol_adam,
-                                     compute_v_pred,
-                                     get_pol_weights_num,
-                                     get_G_t_inv,
-                                     gamma,
-                                     cur_lrmult * optim_stepsize * 0.1,
-                                     optim_stepsize,
-                                     stochastic=True)
+
+    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic=False)
 
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer, best_fitness
@@ -212,7 +201,7 @@ def learn(env, policy_fn, *,
 
     assert sum([max_iters > 0, max_timesteps > 0, max_episodes > 0,
                 max_seconds > 0]) == 1, "Only one time constraint permitted"
-
+    normalizer = Normalizer(1)
     # Step learning, this loop now indicates episodes
     while True:
         if callback: callback(locals(), globals())
@@ -228,21 +217,90 @@ def learn(env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) / (max_timesteps / 2), 0)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / (0.5 * max_timesteps), 1e-8)
         else:
             raise NotImplementedError
 
         logger.log("********** Episode %i ************" % episodes_so_far)
 
-        seg = seg_gen.__next__()
-        lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
-        listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
-        lens, rews = map(flatten_lists, zip(*listoflrpairs))
-        lenbuffer.extend(lens)
-        rewbuffer.extend(rews)
+        rac_alpha = optim_stepsize * cur_lrmult
+        rac_beta = optim_stepsize * cur_lrmult * 0.1
+        #
+        # print("rac_alpha=", rac_alpha)
+        # print("rac_beta=", rac_beta)
+        if timesteps_so_far == 0:
+            # result_record()
+            seg = seg_gen.__next__()
+            lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
+            listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
+            lens, rews = map(flatten_lists, zip(*listoflrpairs))
+            lenbuffer.extend(lens)
+            rewbuffer.extend(rews)
+            result_record()
 
-        iters_so_far += 1
-        episodes_so_far += len(lens)
+        ob = env.reset()
+        # episode = []
+        cur_ep_ret = 0  # return in current episode
+        cur_ep_len = 0  # len of current episode
+        ep_rets = []  # returns of completed episodes in this segment
+        ep_lens = []  # lengths of ...
+
+        obs = []
+        record = False
+        for t in itertools.count():
+            ac, vpred = pi.act(stochastic = True, ob = ob)
+            ac = np.clip(ac, ac_space.low, ac_space.high)
+
+            obs.append(ob)
+            next_ob, rew, done, _ = env.step(ac)
+
+            # rew = np.clip(rew, -1., 1.)
+            # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
+
+            original_rew = rew
+            # normalizer.update(rew)
+            # rew = normalizer.normalize(rew)
+            cur_ep_ret += (original_rew - shift)
+            cur_ep_len += 1
+            timesteps_so_far += 1
+
+            # Compute v target and TD
+            v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
+            adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
+
+            # Update V and Update Policy
+            vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
+                                           rac_alpha)
+            vf_adam.update(vf_g, rac_alpha)
+            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
+                                              rac_beta)
+            pol_adam.update(pol_g, rac_beta)
+            ob = next_ob
+            if timesteps_so_far % 10000 == 0:
+                record = True
+            if done:
+                print(
+                    "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
+                # ep_rets.append(cur_ep_ret)  # returns of completed episodes in this segment
+                # ep_lens.append(cur_ep_len)  # lengths of ..
+
+                # lenbuffer.append(cur_ep_len)
+                # rewbuffer.append(cur_ep_ret)
+
+                if hasattr(pi, "ob_rms"): pi.ob_rms.update(np.array(obs))  # update running mean/std for normalization
+                iters_so_far += 1
+                episodes_so_far += 1
+                ob = env.reset()
+                if record:
+                    seg = seg_gen.__next__()
+                    lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
+                    listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
+                    lens, rews = map(flatten_lists, zip(*listoflrpairs))
+                    lenbuffer.extend(lens)
+                    rewbuffer.extend(rews)
+                    result_record()
+                    record = False
+                break
 
 
 def flatten_lists(listoflists):
