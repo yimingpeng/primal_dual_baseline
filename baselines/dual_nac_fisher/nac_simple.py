@@ -139,6 +139,8 @@ def learn(env, policy_fn, *,
     ob = U.get_placeholder_cached(name = "ob")
     ac = pi.pdtype.sample_placeholder([None])
     adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])
+    G_t_inv = tf.placeholder(dtype = tf.float32, shape = [None, None])
+    alpha = tf.placeholder(dtype = tf.float32, shape = [1])
     # std_mult = tf.placeholder(dtype = tf.float32, shape = [])
 
     # pi.std = pi.std*std_mult
@@ -158,6 +160,14 @@ def learn(env, policy_fn, *,
     pol_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
         "pol")]
 
+    compatible_feature = U.flatgrad(pi.pd.neglogp(ac), pol_var_list)
+
+    G_t_inv_next = 1 / (1 - alpha) * (G_t_inv -
+                                      alpha * (G_t_inv * compatible_feature) * tf.transpose(
+                G_t_inv * compatible_feature)
+                                      / (1 - alpha + alpha * tf.transpose(
+                compatible_feature) * G_t_inv * compatible_feature))
+
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
                                 vf_losses + [U.flatgrad(vf_loss, vf_var_list, 20.0)])
@@ -175,6 +185,9 @@ def learn(env, policy_fn, *,
     # pol_train_op = pol_optimizer.minimize(pol_loss, pol_var_list)
     # Computation
     compute_v_pred = U.function([ob], [pi.vpred])
+    get_pol_weights_num = np.sum([np.prod(v.get_shape().as_list()) for v in pol_var_list])
+
+    get_G_t_inv = U.function([ob, ac, G_t_inv, alpha], [G_t_inv_next])
     # adapt_std = U.function([std_mult], [pi.std])
     # vf_update = U.function([ob, td_v_target], [vf_train_op])
     # pol_update = U.function([ob, ac, adv], [pol_train_op])
@@ -244,6 +257,8 @@ def learn(env, policy_fn, *,
         t_0 = 0
         pol_gradients = []
         record = False
+        k = 1.0
+        G_t_inv = [k * np.eye(get_pol_weights_num)]
         for t in itertools.count():
             ac, vpred = pi.act(stochastic = True, ob = ob)
             ac = np.clip(ac, ac_space.low, ac_space.high)
@@ -264,27 +279,23 @@ def learn(env, policy_fn, *,
             cur_ep_len += 1
             timesteps_so_far += 1
 
-            # Compute v target and TD
-            v_now = np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
-            # logger.log("vnow="+str(v_now[0])+"\n")
-            v_target = rew + gamma * v_now
+             # Compute v target and TD
+            v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
 
+            G_t_inv = get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0],
+                                  np.array([rac_alpha]))
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
             vf_adam.update(vf_g, rac_alpha)
-            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
+            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])),  adv,
                                               rac_beta)
-            pol_gradients.append(pol_g)
 
-            # if t == update_step_threshold:
+            pol_gradients.append(pol_g)
             if t % update_step_threshold == 0 and t > 0:
-                scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
-                coef = update_step_threshold / np.sum(scaling_factor)
-                sum_weighted_pol_gradients = np.sum(
-                    [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-                pol_adam.update(coef * sum_weighted_pol_gradients, rac_beta)
+                sum_pol_gradients = np.sum(pol_gradients, axis = 0)
+                pol_adam.update(G_t_inv[0].dot(sum_pol_gradients), rac_beta)
                 pol_gradients = []
                 t_0 = t
 
@@ -292,14 +303,12 @@ def learn(env, policy_fn, *,
             if timesteps_so_far % 10000 == 0:
                 record = True
             if done:
+                # Episode End Update
                 if len(pol_gradients) > 0:
-                    scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
-                    coef = (t - t_0) / np.sum(scaling_factor)
-                    sum_weighted_pol_gradients = np.sum(
-                        [scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
-                    pol_adam.update(coef * sum_weighted_pol_gradients, rac_beta)
+                    sum_pol_gradients = np.sum(pol_gradients, axis = 0)
+                    pol_adam.update(G_t_inv[0].dot(sum_pol_gradients), rac_beta)
                     pol_gradients = []
-                    t_0 = 0
+                    t_0 = t
                 print(
                     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
 

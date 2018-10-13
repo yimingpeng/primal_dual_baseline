@@ -138,12 +138,12 @@ def gym_ctrl_arg_parser():
     Create an argparse.ArgumentParser for run_mujoco.py.
     """
     parser = arg_parser()
-    # parser.add_argument('--env', help='environment ID', type=str,
-    #                      default="CartPole-v0")
+    parser.add_argument('--env', help='environment ID', type=str,
+                         default="MountainCarContinuous-v0")
     # parser.add_argument('--env', help='environment ID', type=str,
     #                     default="LunarLander-v2")
-    parser.add_argument('--env', help='environment ID', type=str,
-                            default="LunarLanderContinuous-v2")
+    # parser.add_argument('--env', help='environment ID', type=str,
+    #                         default="LunarLanderContinuous-v2")
     # parser.add_argument('--env', help='environment ID', type=str,
     #                     default="BipedalWalker-v2")
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
