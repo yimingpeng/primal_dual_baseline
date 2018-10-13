@@ -18,24 +18,20 @@ from baselines import logger
 
 
 def train(env_id, num_timesteps, seed):
-    from baselines.dual_nac_fisher import mlp_policy, nac_simple
-    U.make_session(num_cpu=1).__enter__()
+    from baselines.nac_advantage import mlp_policy, nac_advantage_simple
+    U.make_session(num_cpu=4).__enter__()
     def policy_fn(name, ob_space, ac_space):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
             hid_size=64, num_hid_layers=2)
 
     env = make_pybullet_env(env_id, seed)
-    nac_simple.learn(env, policy_fn,
-            max_timesteps=num_timesteps,
-            timesteps_per_actorbatch=2048,
-            clip_param=0.2, entcoeff=0.0,
-            optim_epochs=1, optim_stepsize=0.025, optim_batchsize=64,
-            gamma=0.99, lam=0.95,
-            rho = 0.95,  # Gradient weighting factor
-            update_step_threshold = 10, # Updating step threshold
-                     shift = 0,
-                     schedule='linear'
-        )
+    nac_advantage_simple.learn(env, policy_fn,
+                               max_timesteps=num_timesteps,
+                               timesteps_per_actorbatch=2048,
+                               clip_param=0.2, entcoeff=0.0,
+                               optim_epochs=10, optim_stepsize=0.01, optim_batchsize=64,
+                               gamma=0.99, lam=0.95, schedule='linear'
+                               )
     env.close()
 
 def main():
