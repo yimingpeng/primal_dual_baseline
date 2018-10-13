@@ -179,6 +179,7 @@ def learn(env, policy_fn, *,
     compute_v_pred = U.function([ob], [pi.vpred])
     get_pol_weights_num = np.sum([np.prod(v.get_shape().as_list()) for v in pol_var_list])
     get_compatible_feature = U.function([ob, ac], [compatible_feature])
+    get_G_t_inv = U.function([ob, ac, G_t_inv, alpha], [G_t_inv_next])
     # vf_update = U.function([ob, td_v_target], [vf_train_op])
     # pol_update = U.function([ob, ac, adv], [pol_train_op])
 
@@ -249,6 +250,9 @@ def learn(env, policy_fn, *,
 
         obs = []
         record = False
+
+        k = 1.0
+        G_t_inv = [k * np.eye(get_pol_weights_num)]
         for t in itertools.count():
             ac, vpred = pi.act(stochastic = True, ob = ob)
             ac = np.clip(ac, ac_space.low, ac_space.high)
@@ -268,7 +272,7 @@ def learn(env, policy_fn, *,
             # Compute v target and TD
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
-
+            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0], np.array([rac_alpha]))
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
@@ -280,9 +284,10 @@ def learn(env, policy_fn, *,
             compatible_feature_product = compatible_feature * compatible_feature.T
             omega_t = (np.eye(compatible_feature_product.shape[0]) - 0.1 * rac_alpha * compatible_feature_product).dot(
                 omega_t) \
-                      + 0.1 * rac_alpha * pol_g
+                      + 0.1 * rac_alpha * G_t_inv[0].dot(pol_g)
 
             pol_adam.update(omega_t, rac_beta)
+
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
                 record = True
