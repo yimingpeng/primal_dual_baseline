@@ -161,7 +161,7 @@ def learn(env, policy_fn, *,
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
-                                vf_losses + [U.flatgrad(vf_loss, vf_var_list)])
+                                vf_losses + [U.flatgrad(vf_loss, vf_var_list, 20.0)])
     vf_adam = MpiAdam(vf_var_list, epsilon = adam_epsilon)
 
     # vf_optimizer = tf.train.AdamOptimizer(learning_rate = lrmult, epsilon = adam_epsilon)
@@ -169,7 +169,7 @@ def learn(env, policy_fn, *,
 
     # Train Policy
     pol_lossandgrad = U.function([ob, ac, adv, lrmult],
-                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list)])
+                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list,20.0)])
     pol_adam = MpiAdam(pol_var_list, epsilon = adam_epsilon)
 
     # pol_optimizer = tf.train.AdamOptimizer(learning_rate = 0.1 * lrmult, epsilon = adam_epsilon)
@@ -177,9 +177,8 @@ def learn(env, policy_fn, *,
 
     # Computation
     compute_v_pred = U.function([ob], [pi.vpred])
-    get_pol_weights_num  = np.sum([np.prod(v.get_shape().as_list()) for v in pol_var_list])
-
-    get_G_t_inv = U.function([ob, ac, G_t_inv, alpha], [G_t_inv_next])
+    get_pol_weights_num = np.sum([np.prod(v.get_shape().as_list()) for v in pol_var_list])
+    get_compatible_feature = U.function([ob, ac], [compatible_feature])
     # vf_update = U.function([ob, td_v_target], [vf_train_op])
     # pol_update = U.function([ob, ac, adv], [pol_train_op])
 
@@ -205,8 +204,7 @@ def learn(env, policy_fn, *,
                 max_seconds > 0]) == 1, "Only one time constraint permitted"
     normalizer = Normalizer(1)
     # Step learning, this loop now indicates episodes
-    k = 1.0
-    G_t_inv = [k * np.eye(get_pol_weights_num)]
+    omega_t = np.zeros(get_pol_weights_num)
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -271,15 +269,20 @@ def learn(env, policy_fn, *,
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
 
-            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0], np.array([rac_alpha]))
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
             vf_adam.update(vf_g, rac_alpha)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
                                               rac_beta)
-            pol_adam.update(G_t_inv[0].dot(pol_g), rac_beta)
+            compatible_feature = np.array(
+                get_compatible_feature(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0]))))
+            compatible_feature_product = compatible_feature * compatible_feature.T
+            omega_t = (np.eye(compatible_feature_product.shape[0]) - 0.1 * rac_alpha * compatible_feature_product).dot(
+                omega_t) \
+                      + 0.1 * rac_alpha * pol_g
 
+            pol_adam.update(omega_t, rac_beta)
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
                 record = True
