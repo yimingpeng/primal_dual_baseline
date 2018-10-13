@@ -6,7 +6,6 @@ import functools
 import collections
 import multiprocessing
 
-from tensorflow.python import debug as tf_debug
 
 def switch(condition, then_expression, else_expression):
     """Switches between two operations depending on a scalar value (int or bool).

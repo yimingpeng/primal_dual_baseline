@@ -130,6 +130,7 @@ def learn(env, policy_fn, *,
     # ----------------------------------------
     ob_space = env.observation_space
     ac_space = env.action_space
+    print(ob_space.sample())
     pi = policy_fn("pi", ob_space, ac_space)  # Construct network for new policy
     td_v_target = tf.placeholder(dtype = tf.float32, shape = [1, 1])  # V target
 
