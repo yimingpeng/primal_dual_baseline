@@ -50,6 +50,8 @@ def traj_segment_generator(pi, env, horizon, stochastic):
             ep_rets = []
             ep_lens = []
             ep_num = 0
+            cur_ep_ret = 0
+            cur_ep_len = 0
         i = t % horizon
         obs[i] = ob
         vpreds[i] = vpred
