@@ -139,7 +139,8 @@ def train(env, policy, normalizer, hp):
     result_record()
     record = False
     for episode in range(hp.main_loop_size):
-        cur_lrmult = max(1.0 - float(timesteps_so_far) / (0.5 * hp.max_timesteps), 1e-8)
+        cur_lrmult = 1.0
+        # cur_lrmult = max(1.0 - float(timesteps_so_far) / (0.5 * hp.max_timesteps), 1e-8)
         if timesteps_so_far >= hp.max_timesteps:
             result_record()
             break
