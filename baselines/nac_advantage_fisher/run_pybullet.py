@@ -37,7 +37,8 @@ def train(env_id, num_timesteps, seed):
 def main():
     args = pybullet_arg_parser().parse_args()
     logger.configure(
-                     format_strs=['stdout', 'log', 'csv'], log_suffix = "PPO1-"+args.env)
+                     format_strs=['stdout', 'log', 'csv'], log_suffix = "NAC_Advantage_Fisher-"+args.env)
+    logger.log("Algorithm: NAC_Advantage_Fisher-"+args.env)
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 
 if __name__ == '__main__':
