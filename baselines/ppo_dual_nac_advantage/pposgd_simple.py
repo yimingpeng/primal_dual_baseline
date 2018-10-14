@@ -264,7 +264,6 @@ def learn(env, policy_fn, *,
                 pol_gradients = []
                 t_0 = t
 
-
             rews[i] = rew
 
             cur_ep_ret += rew

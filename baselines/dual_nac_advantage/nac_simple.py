@@ -162,11 +162,6 @@ def learn(env, policy_fn, *,
 
     compatible_feature = U.flatgrad(pi.pd.neglogp(ac), pol_var_list)
 
-    G_t_inv_next = 1 / (1 - alpha) * (G_t_inv -
-                                      alpha * (G_t_inv * compatible_feature) * tf.transpose(
-                G_t_inv * compatible_feature)
-                                      / (1 - alpha + alpha * tf.transpose(
-                compatible_feature) * G_t_inv * compatible_feature))
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
@@ -187,7 +182,7 @@ def learn(env, policy_fn, *,
     compute_v_pred = U.function([ob], [pi.vpred])
     get_pol_weights_num = np.sum([np.prod(v.get_shape().as_list()) for v in pol_var_list])
 
-    get_G_t_inv = U.function([ob, ac, G_t_inv, alpha], [G_t_inv_next])
+    get_compatible_feature = U.function([ob, ac], [compatible_feature])
     # adapt_std = U.function([std_mult], [pi.std])
     # vf_update = U.function([ob, td_v_target], [vf_train_op])
     # pol_update = U.function([ob, ac, adv], [pol_train_op])
@@ -213,6 +208,7 @@ def learn(env, policy_fn, *,
     normalizer = Normalizer(1)
     std = 1.0
     # Step learning, this loop now indicates episodes
+    omega_t = np.zeros(get_pol_weights_num)
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -235,7 +231,7 @@ def learn(env, policy_fn, *,
 
         # print(adapt_std(cur_lrmult))
         rac_alpha = optim_stepsize * cur_lrmult
-        rac_beta = optim_stepsize * cur_lrmult * 0.1
+        rac_beta = optim_stepsize * cur_lrmult * 0.01
         if timesteps_so_far == 0:
             # result_record()
             seg = seg_gen.__next__()
@@ -283,19 +279,26 @@ def learn(env, policy_fn, *,
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
 
-            G_t_inv = get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0],
-                                  np.array([rac_alpha]))
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
             vf_adam.update(vf_g, rac_alpha)
-            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])),  adv,
+            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
                                               rac_beta)
+            compatible_feature = np.array(
+                get_compatible_feature(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0]))))
+            compatible_feature_product = compatible_feature * compatible_feature.T
+            omega_t = (np.eye(compatible_feature_product.shape[0]) -0.1*rac_alpha * compatible_feature_product).dot(
+                omega_t) \
+                      + 0.1*rac_alpha * pol_g
 
-            pol_gradients.append(pol_g)
+            pol_gradients.append(omega_t)
+
             if t % update_step_threshold == 0 and t > 0:
-                sum_pol_gradients = np.sum(pol_gradients, axis = 0)
-                pol_adam.update(G_t_inv[0].dot(sum_pol_gradients), rac_beta)
+                scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
+                coef = t/np.sum(scaling_factor)
+                sum_weighted_pol_gradients = np.sum([scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
+                pol_adam.update(coef*sum_weighted_pol_gradients, rac_beta)
                 pol_gradients = []
                 t_0 = t
 
@@ -305,8 +308,10 @@ def learn(env, policy_fn, *,
             if done:
                 # Episode End Update
                 if len(pol_gradients) > 0:
-                    sum_pol_gradients = np.sum(pol_gradients, axis = 0)
-                    pol_adam.update(G_t_inv[0].dot(sum_pol_gradients), rac_beta)
+                    scaling_factor = [rho ** (t - i) for i in range(t_0, t)]
+                    coef = t/np.sum(scaling_factor)
+                    sum_weighted_pol_gradients = np.sum([scaling_factor[i] * pol_gradients[i] for i in range(len(scaling_factor))], axis = 0)
+                    pol_adam.update(coef*sum_weighted_pol_gradients, rac_beta)
                     pol_gradients = []
                     t_0 = 0
                 print(

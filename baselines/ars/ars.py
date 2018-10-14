@@ -3,6 +3,8 @@ import inspect
 import os
 import sys
 from collections import deque
+from baselines import logger
+import time
 
 sys.path.append(
     os.path.abspath(
@@ -10,7 +12,7 @@ sys.path.append(
             os.path.abspath(os.path.join(os.getcwd(), os.pardir)), os.pardir)))
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(os.path.dirname(currentdir))
-os.sys.path.insert(0,parentdir)
+os.sys.path.insert(0, parentdir)
 
 """Description:
 """
@@ -23,41 +25,51 @@ __maintainer__ = "Yiming Peng"
 __email__ = "yiming.peng@ecs.vuw.ac.nz"
 __status__ = "Prototype"
 
-# AI 2018
-
-# Importing the libraries
 import os
+import sys
 import numpy as np
 import gym
 from gym import wrappers
 import pybullet_envs
 
 # Setting the Hyper Parameters
-total_steps = 0
+episodes_so_far = 0
+timesteps_so_far = 0
+iters_so_far = 0
 lenbuffer = deque(maxlen = 100)  # rolling buffer for episode lengths
 rewbuffer = deque(maxlen = 100)  # rolling buffer for episode rewards
+
+
 class Hp():
-
-    def __init__(self):
-        self.nb_steps = 1000
-        self.episode_length = 1000
-        self.learning_rate = 0.01
-        self.nb_directions = 50
-        self.nb_best_directions = 50
-        assert self.nb_best_directions <= self.nb_directions
-        self.noise = 0.1
+    def __init__(self, main_loop_size, horizon, num_timesteps):
+        self.main_loop_size = main_loop_size
+        self.horizon = horizon
+        self.max_timesteps = num_timesteps
+        self.step_size = 0.05
+        self.n_directions = 60
+        self.b = 20
+        assert self.b <= self.n_directions, "b must be <= n_directions"
+        self.noise = 0.5
         self.seed = 1
-        self.env_name = 'InvertedPendulumSwingupBulletEnv-v0'
+        ''' chose your favourite '''
+        # self.env_name = 'Reacher-v1'
+        # self.env_name = 'Pendulum-v0'
+        # self.env_name = 'HalfCheetahBulletEnv-v0'
+        # self.env_name = 'Hopper-v1'#'HopperBulletEnv-v0'
+        # self.env_name = 'Ant-v1'#'AntBulletEnv-v0'#
+        self.env_name = 'InvertedPendulumSwingupBulletEnv-v0'  # 'AntBulletEnv-v0'#
+        # self.env_name = 'HalfCheetah-v1'
+        # self.env_name = 'Swimmer-v1'
+        # self.env_name = 'Humanoid-v1'
 
-# Normalizing the states
 
+# observation filter
 class Normalizer():
-
-    def __init__(self, nb_inputs):
-        self.n = np.zeros(nb_inputs)
-        self.mean = np.zeros(nb_inputs)
-        self.mean_diff = np.zeros(nb_inputs)
-        self.var = np.zeros(nb_inputs)
+    def __init__(self, num_inputs):
+        self.n = np.zeros(num_inputs)
+        self.mean = np.zeros(num_inputs)
+        self.mean_diff = np.zeros(num_inputs)
+        self.var = np.zeros(num_inputs)
 
     def observe(self, x):
         self.n += 1.
@@ -71,106 +83,168 @@ class Normalizer():
         obs_std = np.sqrt(self.var)
         return (inputs - obs_mean) / obs_std
 
-# Building the AI
 
+def result_record():
+    global lenbuffer, rewbuffer, iters_so_far, timesteps_so_far, \
+        episodes_so_far, tstart
+    if len(lenbuffer) == 0:
+        mean_lenbuffer = 0
+    else:
+        mean_lenbuffer = np.mean(lenbuffer)
+    if len(rewbuffer) == 0:
+        # TODO: Add pong game checking
+        mean_rewbuffer = 0
+    else:
+        mean_rewbuffer = np.mean(rewbuffer)
+    logger.record_tabular("EpLenMean", mean_lenbuffer)
+    logger.record_tabular("EpRewMean", mean_rewbuffer)
+    logger.record_tabular("EpisodesSoFar", episodes_so_far)
+    logger.record_tabular("TimestepsSoFar", timesteps_so_far)
+    logger.record_tabular("TimeElapsed", time.time() - tstart)
+    logger.dump_tabular()
+
+
+# linear policy
 class Policy():
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, output_size, hp):
         self.theta = np.zeros((output_size, input_size))
+        self.hp = hp
 
-    def evaluate(self, input, delta = None, direction = None):
-        if direction is None:
-            return np.clip(self.theta.dot(input), -1.0, 1.0)
-        elif direction == "positive":
-            return np.clip((self.theta + hp.noise*delta).dot(input), -1.0, 1.0)
-        else:
-            return np.clip((self.theta - hp.noise*delta).dot(input), -1.0, 1.0)
+    def evaluate(self, input):
+        return self.theta.dot(input)
+
+    def positive_perturbation(self, input, delta):
+        return (self.theta + self.hp.noise * delta).dot(input)
+
+    def negative_perturbation(self, input, delta):
+        return (self.theta - self.hp.noise * delta).dot(input)
 
     def sample_deltas(self):
-        return [np.random.randn(*self.theta.shape) for _ in range(hp.nb_directions)]
+        return [np.random.randn(*self.theta.shape) for _ in range(self.hp.n_directions)]
 
     def update(self, rollouts, sigma_r):
         step = np.zeros(self.theta.shape)
         for r_pos, r_neg, d in rollouts:
             step += (r_pos - r_neg) * d
-        self.theta += hp.learning_rate / (hp.nb_best_directions * sigma_r) * step
+        self.theta += self.hp.step_size * step / (sigma_r * self.hp.b)
 
-# Exploring the policy on one specific direction and over one episode
 
-def explore(env, normalizer, policy, direction = None, delta = None):
-    state = env.reset()
-    done = False
-    num_plays = 0.
-    sum_rewards = 0
-    step = 0
-    global total_steps, lenbuffer, rewbuffer
-    while not done and num_plays < hp.episode_length:
-        normalizer.observe(state)
-        state = normalizer.normalize(state)
-        action = policy.evaluate(state, delta, direction)
-        state, reward, done, _ = env.step(action)
-        reward = max(min(reward, 1), -1)
-        sum_rewards += reward
-        num_plays += 1
-        step += 1
-        total_steps+=1
-        if total_steps % 10000 == 0 and total_steps > 0:
-            print(total_steps)
-            print("Averge Rewards:", np.mean(rewbuffer))
-    rewbuffer.append(sum_rewards)
-    lenbuffer.append(step)
-    return sum_rewards
-
-# Training the AI
-
+# training loop
 def train(env, policy, normalizer, hp):
-    for step in range(hp.nb_steps):
-
-        # Initializing the perturbations deltas and the positive/negative rewards
+    global lenbuffer, rewbuffer, iters_so_far, timesteps_so_far, \
+        episodes_so_far, tstart
+    tstart = time.time()
+    rewbuffer.extend(evaluate(env, normalizer, policy))
+    # print(rewbuffer)
+    result_record()
+    record = False
+    for episode in range(hp.main_loop_size):
+        if timesteps_so_far >= hp.max_timesteps:
+            result_record()
+            break
+        # init deltas and rewards
         deltas = policy.sample_deltas()
-        positive_rewards = [0] * hp.nb_directions
-        negative_rewards = [0] * hp.nb_directions
+        reward_positive = [0] * hp.n_directions
+        reward_negative = [0] * hp.n_directions
 
-        # Getting the positive rewards in the positive directions
-        for k in range(hp.nb_directions):
-            positive_rewards[k] = explore(env, normalizer, policy, direction = "positive", delta = deltas[k])
+        record = False
 
-        # Getting the negative rewards in the negative/opposite directions
-        for k in range(hp.nb_directions):
-            negative_rewards[k] = explore(env, normalizer, policy, direction = "negative", delta = deltas[k])
-
-        # Gathering all the positive/negative rewards to compute the standard deviation of these rewards
-        all_rewards = np.array(positive_rewards + negative_rewards)
+        # positive directions
+        for k in range(hp.n_directions):
+            state = env.reset()
+            done = False
+            num_plays = 0.
+            while not done and num_plays < hp.horizon:
+                normalizer.observe(state)
+                state = normalizer.normalize(state)
+                action = policy.positive_perturbation(state, deltas[k])
+                state, reward, done, _ = env.step(action)
+                reward = max(min(reward, 1), -1)
+                reward_positive[k] += reward
+                num_plays += 1
+                timesteps_so_far += 1
+                if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
+                    record = True
+            episodes_so_far += 1
+            if record:
+                # print(total_steps)
+                rewbuffer.extend(evaluate(env, normalizer, policy))
+                # print(rewbuffer)
+                # print("Averge Rewards:", np.mean(rewbuffer))
+                result_record()
+                record = False
+        # negative directions
+        for k in range(hp.n_directions):
+            state = env.reset()
+            done = False
+            num_plays = 0.
+            while not done and num_plays < hp.horizon:
+                normalizer.observe(state)
+                state = normalizer.normalize(state)
+                action = policy.negative_perturbation(state, deltas[k])
+                state, reward, done, _ = env.step(action)
+                reward = max(min(reward, 1), -1)
+                reward_negative[k] += reward
+                num_plays += 1
+                timesteps_so_far += 1
+                if timesteps_so_far % 10000 == 0 and timesteps_so_far > 0:
+                    record = True
+            episodes_so_far += 1
+            if record:
+                # print(total_steps)
+                # print(rewbuffer)
+                rewbuffer.extend(evaluate(env, normalizer, policy))
+                # print("Averge Rewards:", np.mean(rewbuffer))
+                result_record()
+                record = False
+        all_rewards = np.array(reward_negative + reward_positive)
         sigma_r = all_rewards.std()
 
-        # Sorting the rollouts by the max(r_pos, r_neg) and selecting the best directions
-        scores = {k:max(r_pos, r_neg) for k,(r_pos,r_neg) in enumerate(zip(positive_rewards, negative_rewards))}
-        order = sorted(scores.keys(), key = lambda x:scores[x])[:hp.nb_best_directions]
-        rollouts = [(positive_rewards[k], negative_rewards[k], deltas[k]) for k in order]
+        # sort rollouts wrt max(r_pos, r_neg) and take (hp.b) best
+        scores = {k: max(r_pos, r_neg) for k, (r_pos, r_neg) in enumerate(zip(reward_positive, reward_negative))}
+        order = sorted(scores.keys(), key = lambda x: scores[x])[-hp.b:]
+        rollouts = [(reward_positive[k], reward_negative[k], deltas[k]) for k in order[::-1]]
 
-        # Updating our policy
+        # update policy:
         policy.update(rollouts, sigma_r)
 
-        # Printing the final reward of the policy after the update
-        reward_evaluation = explore(env, normalizer, policy)
-        # print('Step:', step, 'Reward:', reward_evaluation)
+        # evaluate
 
-# Running the main code
+        # finish, print:
+        # print('episode',episode,'reward_evaluation',reward_evaluation)
 
-def mkdir(base, name):
-    path = os.path.join(base, name)
-    if not os.path.exists(path):
-        os.makedirs(path)
-    return path
-work_dir = mkdir('exp', 'brs')
-monitor_dir = mkdir(work_dir, 'monitor')
 
-hp = Hp()
-np.random.seed(hp.seed)
-env = gym.make(hp.env_name)
-# env.render(mode = "human")
-env = wrappers.Monitor(env, monitor_dir, force = True)
-nb_inputs = env.observation_space.shape[0]
-nb_outputs = env.action_space.shape[0]
-policy = Policy(nb_inputs, nb_outputs)
-normalizer = Normalizer(nb_inputs)
-train(env, policy, normalizer, hp)
+def evaluate(env, normalizer, policy):
+    state = env.reset()
+    num_plays = 0
+    reward_evaluation = 0
+    ep_num = 0
+    rewards = []
+    while True:
+        if ep_num >= 5:
+            break
+        normalizer.observe(state)
+        state = normalizer.normalize(state)
+        action = policy.evaluate(state)
+        state, reward, done, _ = env.step(action)
+        reward_evaluation += reward
+        num_plays += 1
+        if done:
+            ep_num += 1
+            rewards.append(reward_evaluation)
+            reward_evaluation = 0
+            num_plays = 0
+            state = env.reset()
+    return rewards
+
+
+if __name__ == '__main__':
+    hp = Hp()
+    np.random.seed(hp.seed)
+    env = gym.make(hp.env_name)
+    # env = wrappers.Monitor(env, monitor_dir, force=True)
+    num_inputs = env.observation_space.shape[0]
+    num_outputs = env.action_space.shape[0]
+    policy = Policy(num_inputs, num_outputs, hp)
+    normalizer = Normalizer(num_inputs)
+    train(env, policy, normalizer, hp)
