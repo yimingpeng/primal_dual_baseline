@@ -41,15 +41,15 @@ rewbuffer = deque(maxlen = 100)  # rolling buffer for episode rewards
 
 
 class Hp():
-    def __init__(self, main_loop_size, horizon, num_timesteps):
+    def __init__(self, main_loop_size, horizon, num_timesteps, step_size, noise):
         self.main_loop_size = main_loop_size
         self.horizon = horizon
         self.max_timesteps = num_timesteps
-        self.step_size = 0.05
+        self.step_size = step_size
         self.n_directions = 60
         self.b = 20
         assert self.b <= self.n_directions, "b must be <= n_directions"
-        self.noise = 0.5
+        self.noise = noise
         self.seed = 1
         ''' chose your favourite '''
         # self.env_name = 'Reacher-v1'
@@ -57,7 +57,7 @@ class Hp():
         # self.env_name = 'HalfCheetahBulletEnv-v0'
         # self.env_name = 'Hopper-v1'#'HopperBulletEnv-v0'
         # self.env_name = 'Ant-v1'#'AntBulletEnv-v0'#
-        self.env_name = 'InvertedPendulumSwingupBulletEnv-v0'  # 'AntBulletEnv-v0'#
+        # self.env_name = 'InvertedPendulumSwingupBulletEnv-v0'  # 'AntBulletEnv-v0'#
         # self.env_name = 'HalfCheetah-v1'
         # self.env_name = 'Swimmer-v1'
         # self.env_name = 'Humanoid-v1'
@@ -122,7 +122,7 @@ class Policy():
     def sample_deltas(self):
         return [np.random.randn(*self.theta.shape) for _ in range(self.hp.n_directions)]
 
-    def update(self, rollouts, sigma_r):
+    def update(self, rollouts, sigma_r ):
         step = np.zeros(self.theta.shape)
         for r_pos, r_neg, d in rollouts:
             step += (r_pos - r_neg) * d
@@ -139,6 +139,7 @@ def train(env, policy, normalizer, hp):
     result_record()
     record = False
     for episode in range(hp.main_loop_size):
+        cur_lrmult = max(1.0 - float(timesteps_so_far) / (0.5 * hp.max_timesteps), 1e-8)
         if timesteps_so_far >= hp.max_timesteps:
             result_record()
             break
@@ -158,6 +159,7 @@ def train(env, policy, normalizer, hp):
                 normalizer.observe(state)
                 state = normalizer.normalize(state)
                 action = policy.positive_perturbation(state, deltas[k])
+                action = np.clip(action, env.action_space.low, env.action_space.high)
                 state, reward, done, _ = env.step(action)
                 reward = max(min(reward, 1), -1)
                 reward_positive[k] += reward
@@ -205,6 +207,7 @@ def train(env, policy, normalizer, hp):
         order = sorted(scores.keys(), key = lambda x: scores[x])[-hp.b:]
         rollouts = [(reward_positive[k], reward_negative[k], deltas[k]) for k in order[::-1]]
 
+        hp.step_size = hp.step_size * cur_lrmult
         # update policy:
         policy.update(rollouts, sigma_r)
 

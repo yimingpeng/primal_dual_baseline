@@ -21,7 +21,9 @@ def train(env_id, num_timesteps, seed):
     from baselines.ars import ars
     main_loop_size = 1000
     horizon = 1000
-    hp = ars.Hp(main_loop_size, horizon, num_timesteps)
+    step_size = 0.1
+    noise = 0.025
+    hp = ars.Hp(main_loop_size, horizon, num_timesteps, step_size, noise)
     set_global_seeds(seed)
     env = make_pybullet_env(env_id, seed)
     # env = wrappers.Monitor(env, monitor_dir, force=True)
