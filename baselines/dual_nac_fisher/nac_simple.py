@@ -235,7 +235,7 @@ def learn(env, policy_fn, *,
 
         # print(adapt_std(cur_lrmult))
         rac_alpha = optim_stepsize * cur_lrmult
-        rac_beta = optim_stepsize * cur_lrmult * 0.5
+        rac_beta = optim_stepsize * cur_lrmult * 0.25
         if timesteps_so_far == 0:
             # result_record()
             seg = seg_gen.__next__()
