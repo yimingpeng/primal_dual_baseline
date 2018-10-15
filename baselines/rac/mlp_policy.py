@@ -31,9 +31,7 @@ class MlpPolicy(object):
             # for i in range(num_hid_layers):
             #     last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name = "fc%i" % (i + 1),
             #                                           kernel_initializer = U.normc_initializer(1.0)))
-            regularizer = tf.contrib.layers.l2_regularizer(scale=0.1)
-            self.vpred = tf.layers.dense(last_out, 1, name = 'final', kernel_initializer = U.normc_initializer(1.0),
-                                         kernel_regularizer = regularizer)[:,
+            self.vpred = tf.layers.dense(last_out, 1, name = 'final', kernel_initializer = U.normc_initializer(1.0))[:,
                          0]
 
         with tf.variable_scope('pol'):
