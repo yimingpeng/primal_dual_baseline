@@ -142,15 +142,12 @@ def learn(env, policy_fn, *,
 
     ent = pi.pd.entropy()
 
-    meanent = tf.reduce_mean(ent)
-    pol_entpen = (-entcoeff) * meanent
-
     vf_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target))
     vf_losses = [vf_loss]
     vf_loss_names = ["vf_loss"]
 
     l2_loss = tf.losses.get_regularization_loss()
-    pol_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac)) + pol_entpen
+    pol_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
     pol_losses = [pol_loss]
     pol_loss_names = ["pol_loss"]
 
