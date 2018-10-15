@@ -22,6 +22,7 @@ class MlpPolicy(object):
         ob = U.get_placeholder(name = "ob", dtype = tf.float32, shape = [sequence_length] + list(ob_space.shape))
         # self.std = tf.Variable(1.0)
         self.std = tf.constant(1.0)
+        regularizer = tf.contrib.layers.l2_regularizer(scale=0.1)
         with tf.variable_scope("obfilter"):
             self.ob_rms = RunningMeanStd(shape = ob_space.shape)
 
@@ -31,7 +32,8 @@ class MlpPolicy(object):
             # for i in range(num_hid_layers):
             #     last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name = "fc%i" % (i + 1),
             #                                           kernel_initializer = U.normc_initializer(1.0)))
-            self.vpred = tf.layers.dense(last_out, 1, name = 'final', kernel_initializer = U.normc_initializer(1.0))[:,
+            self.vpred = tf.layers.dense(last_out, 1, name = 'final', kernel_initializer = U.normc_initializer(1.0),
+                                         kernel_regularizer = regularizer)[:,
                          0]
 
         with tf.variable_scope('pol'):
@@ -41,7 +43,8 @@ class MlpPolicy(object):
             #                                           kernel_initializer = U.normc_initializer(1.0)))
             if gaussian_fixed_var and isinstance(ac_space, gym.spaces.Box):
                 mean = tf.layers.dense(last_out, pdtype.param_shape()[0] // 2, name = 'final',
-                                       kernel_initializer = U.normc_initializer(0.01))
+                                       kernel_initializer = U.normc_initializer(0.01),
+                                         kernel_regularizer = regularizer)
                 # logstd = tf.get_variable(name="logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
                 # pdparam = tf.concat([mean, mean * 0.0 + tf.ones(pdtype.param_shape()[0])//2], axis = 1)
                 # logstd = tf.get_variable(name="logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
@@ -49,7 +52,8 @@ class MlpPolicy(object):
                 pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
             else:
                 pdparam = tf.layers.dense(last_out, pdtype.param_shape()[0], name = 'final',
-                                          kernel_initializer = U.normc_initializer(0.01))
+                                          kernel_initializer = U.normc_initializer(0.01),
+                                         kernel_regularizer = regularizer)
 
         self.pd = pdtype.pdfromflat(pdparam)
 
