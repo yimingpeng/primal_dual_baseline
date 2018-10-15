@@ -23,13 +23,18 @@ if person == 'achen':
 else:
     f = open("../../grid_scripts/template.sh")
     f2 = open("../../grid_scripts/run_grid_ex_template.sh")
-algorithms = ["ppo", "ppo_rac", "ppo_nac_fisher",
-              "ppo_nac_advantage_fisher", "ppo_nac_advantage",
-              "ppo_dual_rac", "ppo_dual_nac_fisher", "ppo_dual_nac_advantage"]
-bullet_problems = ["HalfCheetah", "Hopper", "InvertedDoublePendulum",
-                   "InvertedPendulum", "InvertedPendulumSwingup", "Reacher",
-                   "Walker2D"]
-gym_problems = ["LunarLanderContinuous", "BipedalWalker", "BipedalWalkerHardcore"]
+# algorithms = ["ppo", "ppo_rac", "ppo_nac_fisher",
+#               "ppo_nac_advantage_fisher", "ppo_nac_advantage",
+#               "ppo_dual_rac", "ppo_dual_nac_fisher", "ppo_dual_nac_advantage"]
+algorithms = ["ars", "dual_nac_advantage", "dual_nac_fisher",
+              "dual_rac", "nac_advantage",
+              "nac_advantage_fisher", "nac_fisher", "ppo_linear", "rac"]
+# bullet_problems = ["HalfCheetah", "Hopper", "InvertedDoublePendulum",
+#                    "InvertedPendulum", "InvertedPendulumSwingup", "Reacher",
+#                    "Walker2D"]
+bullet_problems = ["InvertedDoublePendulum",
+                   "InvertedPendulum", "InvertedPendulumSwingup"]
+gym_problems = ["MountainCarContinuous", "Acrobat", "Pendulum"]
 seeds = range(5)
 # Generate for Bullet problems
 for algorithm in algorithms:
