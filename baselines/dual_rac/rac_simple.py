@@ -168,7 +168,7 @@ def learn(env, policy_fn, *,
 
     # Train Policy
     pol_lossandgrad = U.function([ob, ac, adv, lrmult],
-                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list, 20.0)])
+                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list)])
     pol_adam = MpiAdam(pol_var_list, epsilon = adam_epsilon)
 
     # pol_optimizer = tf.train.AdamOptimizer(learning_rate = 0.1 * lrmult, epsilon = adam_epsilon)
