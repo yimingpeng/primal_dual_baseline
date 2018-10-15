@@ -86,9 +86,9 @@ for algorithm in algorithms:
                 line = "cd $experimentFolder/$experimentName/" + algorithm.lower() + "/\n"
             if "BipedalWalker-v2" in line:
                 if algorithm == "DDPG":
-                    line = "python $pyName --env-id " + problem + "-v2" + " --seed $SGE_TASK_ID\n"
+                    line = "python $pyName --env-id " + problem + "-v0" + " --seed $SGE_TASK_ID\n"
                 else:
-                    line = "python $pyName --env " + problem + "-v2" + " --seed $SGE_TASK_ID\n"
+                    line = "python $pyName --env " + problem + "-v0" + " --seed $SGE_TASK_ID\n"
             f1.write(line)
         f1.close()
         f.seek(0)

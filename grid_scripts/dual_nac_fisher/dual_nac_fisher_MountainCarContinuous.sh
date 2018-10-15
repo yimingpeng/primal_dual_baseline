@@ -95,7 +95,7 @@ cd $experimentFolder/$experimentName/dual_nac_fisher/
 # Run experiment
 #
 echo ==RUNNING EXPERIMENT==
-python $pyName --env MountainCarContinuous-v2 --seed $SGE_TASK_ID
+python $pyName --env MountainCarContinuous-v0 --seed $SGE_TASK_ID
 #
 echo ==AND NOW, HAVING DONE SOMTHING USEFUL AND CREATED SOME OUTPUT==
 ls -la
