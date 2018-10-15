@@ -29,7 +29,7 @@ def train(env_id, num_timesteps, seed):
             max_timesteps=num_timesteps,
             timesteps_per_actorbatch=2048,
             clip_param=0.2, entcoeff=0.0,
-            optim_epochs=1, optim_stepsize=0.02, optim_batchsize=64,
+            optim_epochs=1, optim_stepsize=0.08, optim_batchsize=64,
             gamma=0.99, lam=0.95,
             rho = 0.95,  # Gradient weighting factor
             update_step_threshold = 10, # Updating step threshold
