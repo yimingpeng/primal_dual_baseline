@@ -34,7 +34,7 @@ def traj_segment_generator_eval(pi, env, horizon, stochastic):
             cur_ep_ret = 0
             cur_ep_len = 0
 
-        ac = np.clip(ac, env.action_space.low, env.action_space.high)
+        # ac = np.clip(ac, env.action_space.low, env.action_space.high)
         ob, rew, new, _ = env.step(ac)
         # rew = np.clip(rew, -1., 1.)
 
@@ -99,7 +99,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         news[i] = new
         acs[i] = ac
         prevacs[i] = prevac
-        ac = np.clip(ac, env.action_space.low, env.action_space.high)
+        # ac = np.clip(ac, env.action_space.low, env.action_space.high)
         ob, rew, new, _ = env.step(ac)
         rews[i] = rew
 
