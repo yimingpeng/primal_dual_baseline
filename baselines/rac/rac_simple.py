@@ -146,7 +146,7 @@ def learn(env, policy_fn, *,
     vf_losses = [vf_loss]
     vf_loss_names = ["vf_loss"]
 
-    pol_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
+    pol_loss = tf.reduce_mean(tf.stop_gradient(pi.vpred - td_v_target) * pi.pd.neglogp(ac))
     pol_losses = [pol_loss]
     pol_loss_names = ["pol_loss"]
 
@@ -172,7 +172,7 @@ def learn(env, policy_fn, *,
     # vf_train_op = vf_optimizer.minimize(vf_loss, vf_var_list)
 
     # Train Policy
-    pol_lossandgrad = U.function([ob, ac, adv, lrmult],
+    pol_lossandgrad = U.function([ob, ac, adv, lrmult, td_v_target],
                                  pol_losses + [U.flatgrad(pol_loss, pol_var_list)])
     pol_adam = MpiAdam(pol_var_list, epsilon = adam_epsilon)
 
@@ -279,7 +279,7 @@ def learn(env, policy_fn, *,
             # pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
             #                                   rac_beta)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac, adv,
-                                              rac_beta)
+                                              rac_beta, v_target)
             pol_adam.update(pol_g, rac_beta)
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
