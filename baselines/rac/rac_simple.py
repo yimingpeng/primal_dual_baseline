@@ -37,7 +37,6 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     while True:
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
-        ac = np.clip(ac, env.action_space.low, env.action_space.high)
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value
@@ -58,6 +57,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         news[i] = new
         acs[i] = ac
         prevacs[i] = prevac
+        # ac = np.clip(ac, env.action_space.low, env.action_space.high)
         ob, rew, new, _ = env.step(ac)
         # rew = np.clip(rew, -1., 1.)
         rews[i] = rew
@@ -137,16 +137,15 @@ def learn(env, policy_fn, *,
                             shape = [])  # learning rate multiplier, updated with schedule
 
     ob = U.get_placeholder_cached(name = "ob")
-    ac = pi.pdtype.sample_placeholder([None])
+    ac = pi.pdtype.sample_placeholder([])
     adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])
 
     ent = pi.pd.entropy()
 
-    vf_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target))
+    vf_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target) * 0.5)
     vf_losses = [vf_loss]
     vf_loss_names = ["vf_loss"]
 
-    l2_loss = tf.losses.get_regularization_loss()
     pol_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
     pol_losses = [pol_loss]
     pol_loss_names = ["pol_loss"]
@@ -166,7 +165,7 @@ def learn(env, policy_fn, *,
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
-                                vf_losses + [U.flatgrad(vf_loss, vf_var_list, 20.0)])
+                                vf_losses + [U.flatgrad(vf_loss, vf_var_list)])
     vf_adam = MpiAdam(vf_var_list, epsilon = adam_epsilon)
 
     # vf_optimizer = tf.train.AdamOptimizer(learning_rate = lrmult, epsilon = adam_epsilon)
@@ -174,7 +173,7 @@ def learn(env, policy_fn, *,
 
     # Train Policy
     pol_lossandgrad = U.function([ob, ac, adv, lrmult],
-                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list, 20.0)])
+                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list)])
     pol_adam = MpiAdam(pol_var_list, epsilon = adam_epsilon)
 
     # pol_optimizer = tf.train.AdamOptimizer(learning_rate = 0.1 * lrmult, epsilon = adam_epsilon)
@@ -191,7 +190,7 @@ def learn(env, policy_fn, *,
     # Prepare for rollouts
     # ----------------------------------------
 
-    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic=False)
+    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic = False)
 
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer, best_fitness
@@ -221,21 +220,22 @@ def learn(env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) / (0.5 * max_timesteps), 1e-8)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / (2 * max_timesteps), 1e-8)
         else:
             raise NotImplementedError
         logger.log("********** Episode %i ************" % episodes_so_far)
 
         rac_alpha = optim_stepsize * cur_lrmult
         rac_beta = optim_stepsize * cur_lrmult * 0.1
+
         #
         # print("rac_alpha=", rac_alpha)
         # print("rac_beta=", rac_beta)
         if timesteps_so_far == 0:
             # result_record()
             seg = seg_gen.__next__()
-            lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
-            listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
+            lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
+            listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
             lens, rews = map(flatten_lists, zip(*listoflrpairs))
             lenbuffer.extend(lens)
             rewbuffer.extend(rews)
@@ -252,10 +252,11 @@ def learn(env, policy_fn, *,
         record = False
         for t in itertools.count():
             ac, vpred = pi.act(stochastic = True, ob = ob)
-            ac = np.clip(ac, ac_space.low, ac_space.high)
-
+            # origin_ac = ac
+            # ac = np.clip(ac, ac_space.low, ac_space.high)
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
+            # ac = origin_ac
 
             # rew = np.clip(rew, -1., 1.)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
@@ -275,7 +276,9 @@ def learn(env, policy_fn, *,
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
             vf_adam.update(vf_g, rac_alpha)
-            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
+            # pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
+            #                                   rac_beta)
+            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac, adv,
                                               rac_beta)
             pol_adam.update(pol_g, rac_beta)
             ob = next_ob
@@ -308,3 +311,4 @@ def learn(env, policy_fn, *,
 
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]
+

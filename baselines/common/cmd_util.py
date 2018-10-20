@@ -145,7 +145,9 @@ def gym_ctrl_arg_parser():
     # parser.add_argument('--env', help='environment ID', type=str,
     #                         default="LunarLanderContinuous-v2")
     parser.add_argument('--env', help='environment ID', type=str,
-                        default="BipedalWalker-v2")
+                         default="CartPole-v0")
+    # parser.add_argument('--env', help='environment ID', type=str,
+    #                     default="Pendulum-v0")
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
     parser.add_argument('--num-timesteps', type=int, default=int(5e6))
     return parser
@@ -159,8 +161,12 @@ def pybullet_arg_parser():
     parser = arg_parser()
     # parser.add_argument('--env', help='environment ID', type=str,
     #                     default="Walker2DBulletEnv-v0")
+    # parser.add_argument('--env', help='environment ID', type=str,
+    #                     default="InvertedDoublePendulumBulletEnv-v0")
     parser.add_argument('--env', help='environment ID', type=str,
-                        default="InvertedPendulumSwingupBulletEnv-v0")
+                        default="InvertedPendulumBulletEnv-v0")
+    # parser.add_argument('--env', help='environment ID', type=str,
+    #                     default="InvertedPendulumSwingupBulletEnv-v0")
     # parser.add_argument('--env', help='environment ID', type=str,
     #                     default="HumanoidBulletEnv-v0")
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)

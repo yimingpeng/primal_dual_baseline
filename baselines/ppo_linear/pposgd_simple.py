@@ -20,7 +20,7 @@ def traj_segment_generator_eval(pi, env, horizon, stochastic):
     ep_num = 0
     while True:
         ac, vpred = pi.act(stochastic, ob)
-        ac = np.clip(ac, -1., 1.)
+        # ac = np.clip(ac, -1., 1.)
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value
@@ -35,7 +35,7 @@ def traj_segment_generator_eval(pi, env, horizon, stochastic):
             cur_ep_len = 0
 
         ob, rew, new, _ = env.step(ac)
-        rew = np.clip(rew, -1., 1.)
+        # rew = np.clip(rew, -1., 1.)
 
         cur_ep_ret += rew
         cur_ep_len += 1
@@ -75,7 +75,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
             record = True
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
-        ac = np.clip(ac, env.action_space.low, env.action_space.high)
+        # ac = np.clip(ac, env.action_space.low, env.action_space.high)
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value
@@ -243,7 +243,7 @@ def learn(env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) / (max_timesteps / 2), 0)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / max_timesteps, 0)
         else:
             raise NotImplementedError
 
