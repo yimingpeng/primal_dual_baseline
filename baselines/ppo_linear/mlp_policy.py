@@ -29,11 +29,11 @@ class MlpPolicy(object):
         with tf.variable_scope('vf'):
 
             obz = tf.clip_by_value((ob - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
-            # import numpy as np
-            # for i in range(0, 10):
-            #     # feature_funcs.append(lambda s, i=i: tf.pow(s, i))
-            #     feature_funcs.append(lambda s, i=i: tf.cos(i*np.pi*s))
-            # obz = tf.concat([func(obz) for func in feature_funcs], axis = 1)
+            import numpy as np
+            for i in range(0, 20):
+                # feature_funcs.append(lambda s, i=i: tf.pow(s, i))
+                feature_funcs.append(lambda s, i=i: tf.cos(i*np.pi*s))
+            obz = tf.concat([func(obz) for func in feature_funcs], axis = 1)
             last_out = obz
             # for i in range(num_hid_layers):
             #     last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name = "fc%i" % (i + 1),
