@@ -38,7 +38,7 @@ class MlpPolicy(object):
             # for i in range(num_hid_layers):
             #     last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name = "fc%i" % (i + 1),
             #                                           kernel_initializer = U.normc_initializer(1.0)))
-            self.vpred = tf.layers.dense(last_out, 1, name = 'final', kernel_initializer = U.normc_initializer(1.0))[:,
+            self.vpred = tf.layers.dense(last_out, 1, name = 'final', kernel_initializer = U.normc_initializer(0.01))[:,
                          0]
 
         with tf.variable_scope('pol'):
@@ -51,7 +51,7 @@ class MlpPolicy(object):
                 # logstd = tf.get_variable(name="logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
                 # pdparam = tf.concat([mean, mean * 0.0 + tf.ones(pdtype.param_shape()[0])//2], axis = 1)
                 # logstd = tf.get_variable(name="logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
-                logstd = tf.multiply(tf.ones(shape=[1, pdtype.param_shape()[0]//2]), tf.constant(0.001))
+                logstd = tf.multiply(tf.ones(shape=[1, pdtype.param_shape()[0]//2]), tf.constant(0.01))
                 pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
             else:
                 pdparam = tf.layers.dense(last_out, pdtype.param_shape()[0], name = 'final',

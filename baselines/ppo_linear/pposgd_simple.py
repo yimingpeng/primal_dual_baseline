@@ -101,6 +101,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         prevacs[i] = prevac
         # ac = np.clip(ac, env.action_space.low, env.action_space.high)
         ob, rew, new, _ = env.step(ac)
+        # rew = np.clip(rew, -1., 1.)
         rews[i] = rew
 
         cur_ep_ret += rew

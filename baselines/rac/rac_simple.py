@@ -142,11 +142,11 @@ def learn(env, policy_fn, *,
 
     ent = pi.pd.entropy()
 
-    vf_loss = 0.5 * tf.reduce_mean(tf.square(pi.vpred - td_v_target))
+    vf_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target))
     vf_losses = [vf_loss]
     vf_loss_names = ["vf_loss"]
 
-    pol_loss = tf.reduce_mean(tf.stop_gradient(pi.vpred - td_v_target) * pi.pd.neglogp(ac))
+    pol_loss = -tf.reduce_mean(adv * pi.pd.logp(ac))
     pol_losses = [pol_loss]
     pol_loss_names = ["pol_loss"]
 
@@ -223,7 +223,7 @@ def learn(env, policy_fn, *,
             cur_lrmult = max(1.0 - float(timesteps_so_far) / max_timesteps, 0)
         else:
             raise NotImplementedError
-        logger.log("********** Episode %i ************" % episodes_so_far)
+        # logger.log("********** Episode %i ************" % episodes_so_far)
 
         rac_alpha = optim_stepsize * cur_lrmult
         rac_beta = optim_stepsize * cur_lrmult * 0.1
@@ -270,16 +270,19 @@ def learn(env, policy_fn, *,
 
             # Compute v target and TD
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
+
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
 
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
+            # vf_g = adv * ob.reshape((1, ob.shape[0]))
             vf_adam.update(vf_g, rac_alpha)
             # pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
             #                                   rac_beta)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac, adv,
                                               rac_beta, v_target)
+            # pol_g = adv *
             pol_adam.update(pol_g, rac_beta)
             ob = next_ob
             if timesteps_so_far % 10000 == 0:
