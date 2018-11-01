@@ -288,8 +288,8 @@ def learn(env, policy_fn, *,
             if timesteps_so_far % 10000 == 0:
                 record = True
             if done:
-                print(
-                    "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
+                # print(
+                #     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
                 # ep_rets.append(cur_ep_ret)  # returns of completed episodes in this segment
                 # ep_lens.append(cur_ep_len)  # lengths of ..
 
