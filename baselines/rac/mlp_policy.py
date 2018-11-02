@@ -40,9 +40,9 @@ class MlpPolicy(object):
             #                                                                                     **2)))
             # obz = tf.concat([func(ob) for func in feature_funcs], axis = 1)
             last_out = obz
-            # for i in range(num_hid_layers):
-            #     last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name = "fc%i" % (i + 1),
-            #                                           kernel_initializer = U.normc_initializer(1.0)))
+            for i in range(num_hid_layers):
+                last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name = "fc%i" % (i + 1),
+                                                      kernel_initializer = U.normc_initializer(0.1)))
             self.vpred = tf.layers.dense(last_out, 1, name = 'final', kernel_initializer = U.normc_initializer(0.1))[:,
                          0]
 
