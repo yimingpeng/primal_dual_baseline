@@ -272,9 +272,9 @@ def learn(env, policy_fn, *,
             # Compute v target and TD
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
 
-            delta = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
+            adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
 
-            adv = lastgaelam = delta + gamma * lam * lastgaelam * done
+            # adv = lastgaelam = delta + gamma * lam * lastgaelam * done
 
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
