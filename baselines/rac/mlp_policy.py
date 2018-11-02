@@ -30,15 +30,15 @@ class MlpPolicy(object):
 
             obz = tf.clip_by_value((ob - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
             import numpy as np
-            for i in range(0, ob_space.shape[0]):
-                # Polinomial
-                # feature_funcs.append(lambda s, i=i: tf.pow(s, i))
-                # Fourier
-                # feature_funcs.append(lambda s, i=i: tf.cos(i*np.pi*s))
-                # RBF
-                feature_funcs.append(lambda s, i=i: tf.exp(-tf.pow(s - self.ob_rms.mean[i], 2)/(2*self.ob_rms.std
-                                                                                                [i]**2)))
-            obz = tf.concat([func(obz) for func in feature_funcs], axis = 1)
+            # for i in range(0, ob_space.shape[0]):
+            #     # Polinomial
+            #     # feature_funcs.append(lambda s, i=i: tf.pow(s, i))
+            #     # Fourier
+            #     # feature_funcs.append(lambda s, i=i: tf.cos(i*np.pi*s))
+            #     # RBF
+            #     feature_funcs.append(lambda s, i=i: tf.exp(-tf.pow(s - self.ob_rms.mean, 2)/(2*self.ob_rms.std
+            #                                                                                     **2)))
+            # obz = tf.concat([func(ob) for func in feature_funcs], axis = 1)
             last_out = obz
             # for i in range(num_hid_layers):
             #     last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name = "fc%i" % (i + 1),
