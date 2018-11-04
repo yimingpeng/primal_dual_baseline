@@ -10,14 +10,10 @@ from collections import deque
 import itertools
 import collections
 
-from baselines.common.normalizer import Normalizer
-
-
 def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
     t = 0
     ac = env.action_space.sample()  # not used, just so we have the datatype
-    # print(ac.shape)
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
 
@@ -34,6 +30,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     acs = np.array([ac for _ in range(horizon)])
     prevacs = acs.copy()
     ep_num = 0
+
     while True:
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
@@ -58,6 +55,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         news[i] = new
         acs[i] = ac
         prevacs[i] = prevac
+        ac = np.clip(ac, env.action_space.low, env.action_space.high)
         ob, rew, new, _ = env.step(ac)
         # rew = np.clip(rew, -1., 1.)
         rews[i] = rew
@@ -78,6 +76,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
 def result_record():
     global lenbuffer, rewbuffer, iters_so_far, timesteps_so_far, \
         episodes_so_far, tstart
+
     print(rewbuffer)
     if len(lenbuffer) == 0:
         mean_lenbuffer = 0
@@ -137,7 +136,7 @@ def learn(env, policy_fn, *,
     lrmult = tf.placeholder(name = 'lrmult', dtype = tf.float32,
                             shape = [])  # learning rate multiplier, updated with schedule
     ob = U.get_placeholder_cached(name = "ob")
-    ac = pi.pdtype.sample_placeholder([None])
+    ac = pi.pdtype.sample_placeholder([])
     adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])
     G_t_inv = tf.placeholder(dtype = tf.float32, shape = [None, None])
     alpha = tf.placeholder(dtype = tf.float32, shape = [1])
@@ -146,13 +145,14 @@ def learn(env, policy_fn, *,
     # pi.std = pi.std*std_mult
     ent = pi.pd.entropy()
 
-    pol_loss = tf.reduce_mean(adv * pi.pd.neglogp(ac))
-    pol_losses = [pol_loss]
-    pol_loss_names = ["pol_loss"]
-
     vf_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target))
     vf_losses = [vf_loss]
     vf_loss_names = ["vf_loss"]
+
+    pol_loss = -tf.reduce_mean(adv * pi.pd.logp(ac))
+    pol_losses = [pol_loss]
+    pol_loss_names = ["pol_loss"]
+
 
     var_list = pi.get_trainable_variables()
     vf_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
@@ -170,15 +170,15 @@ def learn(env, policy_fn, *,
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
-                                vf_losses + [U.flatgrad(vf_loss, vf_var_list, 20.0)])
+                                vf_losses + [U.flatgrad(vf_loss, vf_var_list, 40.0)])
     vf_adam = MpiAdam(vf_var_list, epsilon = adam_epsilon)
 
     # vf_optimizer = tf.train.AdamOptimizer(learning_rate = lrmult, epsilon = adam_epsilon)
     # vf_train_op = vf_optimizer.minimize(vf_loss, vf_var_list)
 
     # Train Policy
-    pol_lossandgrad = U.function([ob, ac, adv, lrmult],
-                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list, 20.0)])
+    pol_lossandgrad = U.function([ob, ac, adv, lrmult, td_v_target],
+                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list, 40.0)])
     pol_adam = MpiAdam(pol_var_list, epsilon = adam_epsilon)
 
     # pol_optimizer = tf.train.AdamOptimizer(learning_rate = 0.1 * lrmult, epsilon = adam_epsilon)
@@ -193,6 +193,8 @@ def learn(env, policy_fn, *,
     # pol_update = U.function([ob, ac, adv], [pol_train_op])
 
     U.initialize()
+    vf_adam.sync()
+    pol_adam.sync()
     # Prepare for rollouts
     # ----------------------------------------
 
@@ -210,7 +212,6 @@ def learn(env, policy_fn, *,
     assert sum([max_iters > 0, max_timesteps > 0, max_episodes > 0,
                 max_seconds > 0]) == 1, "Only one time constraint permitted"
 
-    normalizer = Normalizer(1)
     std = 1.0
     # Step learning, this loop now indicates episodes
     while True:
@@ -227,15 +228,15 @@ def learn(env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) / (0.5 * max_timesteps), 1e-8)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / max_timesteps, 0)
         else:
             raise NotImplementedError
 
-        logger.log("********** Episode %i ************" % episodes_so_far)
+        # logger.log("********** Episode %i ************" % episodes_so_far)
 
         # print(adapt_std(cur_lrmult))
         rac_alpha = optim_stepsize * cur_lrmult
-        rac_beta = optim_stepsize * cur_lrmult * 0.25
+        rac_beta = optim_stepsize * cur_lrmult * 0.1
         if timesteps_so_far == 0:
             # result_record()
             seg = seg_gen.__next__()
@@ -283,13 +284,13 @@ def learn(env, policy_fn, *,
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
 
-            G_t_inv = get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0],
+            G_t_inv = get_G_t_inv(ob.reshape((1, ob.shape[0])), ac, G_t_inv[0],
                                   np.array([rac_alpha]))
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
             vf_adam.update(vf_g, rac_alpha)
-            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])),  adv,
+            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac,  adv,
                                               rac_beta)
 
             pol_gradients.append(pol_g)
@@ -309,8 +310,8 @@ def learn(env, policy_fn, *,
                     pol_adam.update(G_t_inv[0].dot(sum_pol_gradients), rac_beta)
                     pol_gradients = []
                     t_0 = 0
-                print(
-                    "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
+                # print(
+                #     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
 
                 # lenbuffer.append(cur_ep_len)
                 # rewbuffer.append(cur_ep_ret)
