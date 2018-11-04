@@ -204,7 +204,6 @@ def learn(env, policy_fn, *,
 
     assert sum([max_iters > 0, max_timesteps > 0, max_episodes > 0,
                 max_seconds > 0]) == 1, "Only one time constraint permitted"
-    normalizer = Normalizer(1)
     # Step learning, this loop now indicates episodes
     k = 1.0
     G_t_inv = [k * np.eye(get_pol_weights_num)]
@@ -226,7 +225,7 @@ def learn(env, policy_fn, *,
         else:
             raise NotImplementedError
 
-        logger.log("********** Episode %i ************" % episodes_so_far)
+        # logger.log("********** Episode %i ************" % episodes_so_far)
 
         rac_alpha = optim_stepsize * cur_lrmult
         rac_beta = optim_stepsize * cur_lrmult * 0.1
@@ -273,7 +272,7 @@ def learn(env, policy_fn, *,
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
 
-            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0], np.array([rac_alpha]))
+            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac, G_t_inv[0], np.array([rac_alpha]))
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
