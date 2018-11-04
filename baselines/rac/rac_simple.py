@@ -115,7 +115,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
 
-def learn(env, policy_fn, *,
+def learn(env,test_env, policy_fn, *,
           timesteps_per_actorbatch,  # timesteps per actor per update
           clip_param, entcoeff,  # clipping parameter epsilon, entropy coeff
           optim_epochs, optim_stepsize, optim_batchsize,  # optimization hypers
@@ -190,7 +190,7 @@ def learn(env, policy_fn, *,
     # Prepare for rollouts
     # ----------------------------------------
 
-    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic = False)
+    seg_gen = traj_segment_generator(pi, test_env, timesteps_per_actorbatch, stochastic = False)
 
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer, best_fitness
@@ -253,11 +253,11 @@ def learn(env, policy_fn, *,
         lastgaelam = 0
         for t in itertools.count():
             ac, vpred = pi.act(stochastic = True, ob = ob)
-            origin_ac = ac
-            ac = np.clip(ac, ac_space.low, ac_space.high)
+            # origin_ac = ac
+            # ac = np.clip(ac, ac_space.low, ac_space.high)
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
-            ac = origin_ac
+            # ac = origin_ac
 
             # rew = np.clip(rew, -1., 1.)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
