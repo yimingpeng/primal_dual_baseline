@@ -10,9 +10,6 @@ from collections import deque
 import itertools
 import collections
 
-from common.normalizer import Normalizer
-
-
 def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
     t = 0
