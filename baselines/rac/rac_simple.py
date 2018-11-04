@@ -57,7 +57,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         news[i] = new
         acs[i] = ac
         prevacs[i] = prevac
-        ac = np.clip(ac, env.action_space.low, env.action_space.high)
+        # ac = np.clip(ac, env.action_space.low, env.action_space.high)
         ob, rew, new, _ = env.step(ac)
         # rew = np.clip(rew, -1., 1.)
         rews[i] = rew
@@ -165,7 +165,7 @@ def learn(env, policy_fn, *,
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
-                                vf_losses + [U.flatgrad(vf_loss, vf_var_list, 40.0)])
+                                vf_losses + [U.flatgrad(vf_loss, vf_var_list)])
     vf_adam = MpiAdam(vf_var_list, epsilon = adam_epsilon)
 
     # vf_optimizer = tf.train.AdamOptimizer(learning_rate = lrmult, epsilon = adam_epsilon)
@@ -173,7 +173,7 @@ def learn(env, policy_fn, *,
 
     # Train Policy
     pol_lossandgrad = U.function([ob, ac, adv, lrmult, td_v_target],
-                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list, 40.0)])
+                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list)])
     pol_adam = MpiAdam(pol_var_list, epsilon = adam_epsilon)
 
     # pol_optimizer = tf.train.AdamOptimizer(learning_rate = 0.1 * lrmult, epsilon = adam_epsilon)
@@ -253,11 +253,11 @@ def learn(env, policy_fn, *,
         lastgaelam = 0
         for t in itertools.count():
             ac, vpred = pi.act(stochastic = True, ob = ob)
-            origin_ac = ac
-            ac = np.clip(ac, ac_space.low, ac_space.high)
+            # origin_ac = ac
+            # ac = np.clip(ac, ac_space.low, ac_space.high)
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
-            ac = origin_ac
+            # ac = origin_ac
 
             # rew = np.clip(rew, -1., 1.)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
