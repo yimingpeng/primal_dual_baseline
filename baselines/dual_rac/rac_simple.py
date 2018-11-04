@@ -12,12 +12,10 @@ import collections
 
 from baselines.common.normalizer import Normalizer
 
-
 def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
     t = 0
     ac = env.action_space.sample()  # not used, just so we have the datatype
-    # print(ac.shape)
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
 
@@ -34,6 +32,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     acs = np.array([ac for _ in range(horizon)])
     prevacs = acs.copy()
     ep_num = 0
+
     while True:
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
@@ -79,6 +78,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
 def result_record():
     global lenbuffer, rewbuffer, iters_so_far, timesteps_so_far, \
         episodes_so_far, tstart
+
     print(rewbuffer)
     if len(lenbuffer) == 0:
         mean_lenbuffer = 0
@@ -137,27 +137,27 @@ def learn(env, policy_fn, *,
 
     lrmult = tf.placeholder(name = 'lrmult', dtype = tf.float32,
                             shape = [])  # learning rate multiplier, updated with schedule
+
     ob = U.get_placeholder_cached(name = "ob")
     ac = pi.pdtype.sample_placeholder([])
     adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])
-    # std_mult = tf.placeholder(dtype = tf.float32, shape = [])
 
-    # pi.std = pi.std*std_mult
     ent = pi.pd.entropy()
-
-    pol_loss = -tf.reduce_mean(adv * pi.pd.logp(ac))
-    pol_losses = [pol_loss]
-    pol_loss_names = ["pol_loss"]
 
     vf_loss = tf.reduce_mean(tf.square(pi.vpred - td_v_target))
     vf_losses = [vf_loss]
     vf_loss_names = ["vf_loss"]
+
+    pol_loss = -tf.reduce_mean(adv * pi.pd.logp(ac))
+    pol_losses = [pol_loss]
+    pol_loss_names = ["pol_loss"]
 
     var_list = pi.get_trainable_variables()
     vf_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
         "vf")]
     pol_var_list = [v for v in var_list if v.name.split("/")[1].startswith(
         "pol")]
+
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
@@ -174,9 +174,9 @@ def learn(env, policy_fn, *,
 
     # pol_optimizer = tf.train.AdamOptimizer(learning_rate = 0.1 * lrmult, epsilon = adam_epsilon)
     # pol_train_op = pol_optimizer.minimize(pol_loss, pol_var_list)
+
     # Computation
     compute_v_pred = U.function([ob], [pi.vpred])
-    # adapt_std = U.function([std_mult], [pi.std])
     # vf_update = U.function([ob, td_v_target], [vf_train_op])
     # pol_update = U.function([ob, ac, adv], [pol_train_op])
 
@@ -187,6 +187,7 @@ def learn(env, policy_fn, *,
     # ----------------------------------------
 
     seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic = False)
+
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer, best_fitness
     episodes_so_far = 0
@@ -199,9 +200,7 @@ def learn(env, policy_fn, *,
 
     assert sum([max_iters > 0, max_timesteps > 0, max_episodes > 0,
                 max_seconds > 0]) == 1, "Only one time constraint permitted"
-
     normalizer = Normalizer(1)
-    std = 1.0
     # Step learning, this loop now indicates episodes
     while True:
         if callback: callback(locals(), globals())
@@ -217,15 +216,17 @@ def learn(env, policy_fn, *,
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
-            cur_lrmult = max(1.0 - float(timesteps_so_far) / (max_timesteps), 1e-8)
+            cur_lrmult = max(1.0 - float(timesteps_so_far) / max_timesteps, 0)
         else:
             raise NotImplementedError
-
         # logger.log("********** Episode %i ************" % episodes_so_far)
 
-        # print(adapt_std(cur_lrmult))
         rac_alpha = optim_stepsize * cur_lrmult
         rac_beta = optim_stepsize * cur_lrmult * 0.1
+
+        #
+        # print("rac_alpha=", rac_alpha)
+        # print("rac_beta=", rac_beta)
         if timesteps_so_far == 0:
             # result_record()
             seg = seg_gen.__next__()
@@ -249,39 +250,34 @@ def learn(env, policy_fn, *,
         record = False
         for t in itertools.count():
             ac, vpred = pi.act(stochastic = True, ob = ob)
-            # ac = np.clip(ac, ac_space.low, ac_space.high)
-
             origin_ac = ac
             ac = np.clip(ac, ac_space.low, ac_space.high)
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
             ac = origin_ac
+
             # rew = np.clip(rew, -1., 1.)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
-            # all_rewards.append(rew)
-            # if rew < -1.0 or rew > 1.0:
-            #     print("rew=", rew)
+
             original_rew = rew
             # normalizer.update(rew)
             # rew = normalizer.normalize(rew)
-            # rew = np.clip(rew, -1., 1.)
-            # rew = 1. - (1. - rew) ** 0.4
             cur_ep_ret += (original_rew - shift)
             cur_ep_len += 1
             timesteps_so_far += 1
 
             # Compute v target and TD
-            v_now = np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
-            # logger.log("vnow="+str(v_now[0])+"\n")
-            v_target = rew + gamma * v_now
+            v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
+
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
 
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
+            # vf_g = adv * ob.reshape((1, ob.shape[0]))
             vf_adam.update(vf_g, rac_alpha)
             pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac, adv,
-                                              rac_beta)
+                                              rac_beta, v_target)
             pol_gradients.append(pol_g)
 
             # if t == update_step_threshold:
@@ -308,9 +304,12 @@ def learn(env, policy_fn, *,
                     t_0 = 0
                 # print(
                 #     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
+                # ep_rets.append(cur_ep_ret)  # returns of completed episodes in this segment
+                # ep_lens.append(cur_ep_len)  # lengths of ..
 
                 # lenbuffer.append(cur_ep_len)
                 # rewbuffer.append(cur_ep_ret)
+
                 if hasattr(pi, "ob_rms"): pi.ob_rms.update(np.array(obs))  # update running mean/std for normalization
                 iters_so_far += 1
                 episodes_so_far += 1

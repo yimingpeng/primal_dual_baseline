@@ -32,8 +32,8 @@ def train(env_id, num_timesteps, seed):
                      clip_param = 0.2, entcoeff = 0.0,
                      optim_epochs = 1, optim_stepsize = 5e-4, optim_batchsize = 64,
                      gamma = 0.99, lam = 0.95,
-                     rho = 1.0,  # Gradient weighting factor
-                     update_step_threshold = 1,  # Updating step threshold
+                     rho = 0.95,  # Gradient weighting factor
+                     update_step_threshold = 10,  # Updating step threshold
                      shift = 0,
                      schedule = 'linear'
                      )
