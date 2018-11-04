@@ -18,6 +18,7 @@ class MlpPolicy(object):
 
         self.pdtype = pdtype = make_pdtype(ac_space)
         sequence_length = None
+        feature_funcs = []
 
         ob = U.get_placeholder(name = "ob", dtype = tf.float32, shape = [sequence_length] + list(ob_space.shape))
 
@@ -26,19 +27,23 @@ class MlpPolicy(object):
             self.ob_rms = RunningMeanStd(shape = ob_space.shape)
 
         with tf.variable_scope('vf'):
-            # beta = 0.9
-            # Add gaussian RBF
-            # centers = self.ob_rms.mean
-            # obz = tf.clip_by_value(tf.exp(-beta*tf.square(tf.norm(ob - self.ob_rms.mean))), -5.0, 5.0)
-
-            # obz = tf.clip_by_value(tf.exp(-beta*tf.reduce_sum(tf.multiply(ob, self.ob_rms.mean))), -5.0, 5.0)
 
             obz = tf.clip_by_value((ob - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
+            import numpy as np
+            # for i in range(0, ob_space.shape[0]):
+            #     # Polinomial
+            #     # feature_funcs.append(lambda s, i=i: tf.pow(s, i))
+            #     # Fourier
+            #     # feature_funcs.append(lambda s, i=i: tf.cos(i*np.pi*s))
+            #     # RBF
+            #     feature_funcs.append(lambda s, i=i: tf.exp(-tf.pow(s - self.ob_rms.mean, 2)/(2*self.ob_rms.std
+            #                                                                                     **2)))
+            # obz = tf.concat([func(ob) for func in feature_funcs], axis = 1)
             last_out = obz
-            # for i in range(num_hid_layers):
-                # last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name = "fc%i" % (i + 1),
-                #                                       kernel_initializer = U.normc_initializer(1.0)))
-            self.vpred = tf.layers.dense(last_out, 1, name = 'final', kernel_initializer = U.normc_initializer(1.0))[:,
+            for i in range(num_hid_layers):
+                last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name = "fc%i" % (i + 1),
+                                                      kernel_initializer = U.normc_initializer(0.1)))
+            self.vpred = tf.layers.dense(last_out, 1, name = 'final', kernel_initializer = U.normc_initializer(0.1))[:,
                          0]
 
         with tf.variable_scope('pol'):
@@ -47,16 +52,16 @@ class MlpPolicy(object):
             #     last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name = 'fc%i' % (i + 1), kernel_initializer = U.normc_initializer(1.0)))
             if gaussian_fixed_var and isinstance(ac_space, gym.spaces.Box):
                 mean = tf.layers.dense(last_out, pdtype.param_shape()[0] // 2, name = 'final',
-                                       kernel_initializer = U.normc_initializer(0.01))
+                                       kernel_initializer = U.normc_initializer(0.1))
                 # logstd = tf.get_variable(name="logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
                 # pdparam = tf.concat([mean, mean * 0.0 + tf.ones(pdtype.param_shape()[0])//2], axis = 1)
                 # logstd = tf.get_variable(name="logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
-                logstd = tf.multiply(tf.ones(shape=[1, pdtype.param_shape()[0]//2]), self.std/ac_space.shape[0])
+                logstd = tf.multiply(tf.ones(shape=[1, pdtype.param_shape()[0]//2]), tf.constant(0.01))
                 pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
             else:
                 pdparam = tf.layers.dense(last_out, pdtype.param_shape()[0], name = 'final',
-                                          kernel_initializer = U.normc_initializer(0.01))
-
+                                          kernel_initializer = U.normc_initializer(0.1))
+        pdparam = tf.clip_by_value(pdparam, -5.0, 5.0)
         self.pd = pdtype.pdfromflat(pdparam)
 
         self.state_in = []

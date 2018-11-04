@@ -225,7 +225,7 @@ def learn(env, policy_fn, *,
         else:
             raise NotImplementedError
 
-        logger.log("********** Episode %i ************" % episodes_so_far)
+        # logger.log("********** Episode %i ************" % episodes_so_far)
 
         rac_alpha = optim_stepsize * cur_lrmult
         rac_beta = optim_stepsize * cur_lrmult * 0.01
@@ -274,12 +274,12 @@ def learn(env, policy_fn, *,
             # Compute v target and TD
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
-            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), G_t_inv[0], np.array([rac_alpha]))
+            G_t_inv =get_G_t_inv(ob.reshape((1, ob.shape[0])), ac, G_t_inv[0], np.array([rac_alpha]))
             # Update V and Update Policy
             vf_loss, vf_g = vf_lossandgrad(ob.reshape((1, ob.shape[0])), v_target,
                                            rac_alpha)
             vf_adam.update(vf_g, rac_alpha)
-            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac.reshape((1, ac.shape[0])), adv,
+            pol_loss, pol_g = pol_lossandgrad(ob.reshape((1, ob.shape[0])), ac, adv,
                                               rac_beta)
             compatible_feature = np.array(
                 get_compatible_feature(ob.reshape((1, ob.shape[0])), ac))
@@ -294,8 +294,8 @@ def learn(env, policy_fn, *,
             if timesteps_so_far % 10000 == 0:
                 record = True
             if done:
-                print(
-                    "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
+                # print(
+                #     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
                 # ep_rets.append(cur_ep_ret)  # returns of completed episodes in this segment
                 # ep_lens.append(cur_ep_len)  # lengths of ..
 
