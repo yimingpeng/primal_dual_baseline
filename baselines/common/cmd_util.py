@@ -163,11 +163,8 @@ def pybullet_arg_parser():
     #                     default="Walker2DBulletEnv-v0")
     # parser.add_argument('--env', help='environment ID', type=str,
     #                     default="InvertedDoublePendulumBulletEnv-v0")
-    # parser.add_argument('--env', help='environment ID', type=str,
-    #                     default="InvertedPendulumBulletEnv-v0")
-
     parser.add_argument('--env', help='environment ID', type=str,
-                        default="CartPoleBulletEnv-v0")
+                        default="InvertedPendulumBulletEnv-v0")
     # parser.add_argument('--env', help='environment ID', type=str,
     #                     default="InvertedPendulumSwingupBulletEnv-v0")
     # parser.add_argument('--env', help='environment ID', type=str,
