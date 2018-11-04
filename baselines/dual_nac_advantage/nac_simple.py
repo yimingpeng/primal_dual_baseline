@@ -317,8 +317,8 @@ def learn(env, policy_fn, *,
                     pol_adam.update(coef*sum_weighted_pol_gradients, rac_beta)
                     pol_gradients = []
                     t_0 = 0
-                print(
-                    "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
+                # print(
+                #     "Episode {} - Total reward = {}, Total Steps = {}".format(episodes_so_far, cur_ep_ret, cur_ep_len))
 
                 # lenbuffer.append(cur_ep_len)
                 # rewbuffer.append(cur_ep_ret)
