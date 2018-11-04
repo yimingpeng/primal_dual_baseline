@@ -160,7 +160,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
 
-def learn(env, policy_fn, *,
+def learn(env, test_env, policy_fn, *,
           timesteps_per_actorbatch,  # timesteps per actor per update
           clip_param, entcoeff,  # clipping parameter epsilon, entropy coeff
           optim_epochs, optim_stepsize, optim_batchsize,  # optimization hypers
@@ -218,7 +218,7 @@ def learn(env, policy_fn, *,
 
     # Prepare for rollouts
     # ----------------------------------------
-    eval_gen = traj_segment_generator_eval(pi, env, timesteps_per_actorbatch, stochastic = False)
+    eval_gen = traj_segment_generator_eval(pi, test_env, timesteps_per_actorbatch, stochastic = False)
     seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic = True)
 
     global timesteps_so_far, episodes_so_far, iters_so_far, \
@@ -285,7 +285,7 @@ def learn(env, policy_fn, *,
                 adam.update(g, optim_stepsize * cur_lrmult)
                 losses.append(newlosses)
             # logger.log(fmt_row(13, np.mean(losses, axis=0)))
-        logger.log("Current Iteration Training Performance:" + str(np.mean(seg["ep_rets"])))
+        # logger.log("Current Iteration Training Performance:" + str(np.mean(seg["ep_rets"])))
         # logger.log("Evaluating losses...")
         # losses = []
         # for batch in d.iterate_once(optim_batchsize):
