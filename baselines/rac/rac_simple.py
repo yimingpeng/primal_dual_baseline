@@ -273,7 +273,7 @@ def learn(env,test_env, policy_fn, *,
             v_target = rew + gamma * np.array(compute_v_pred(next_ob.reshape((1, ob.shape[0]))))
 
             adv = v_target - np.array(compute_v_pred(ob.reshape((1, ob.shape[0]))))
-            adv = np.clip(adv, -1.0, 1.0)
+            # adv = np.clip(adv, -1.0, 1.0)
 
             # adv = lastgaelam = delta + gamma * lam * lastgaelam * done
 

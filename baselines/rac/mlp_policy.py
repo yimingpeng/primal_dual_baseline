@@ -42,7 +42,7 @@ class MlpPolicy(object):
             last_out = obz
             for i in range(num_hid_layers):
                 last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name = "fc%i" % (i + 1),
-                                                      kernel_initializer = U.normc_initializer(0.1)))
+                                                      kernel_initializer = U.normc_initializer(1.0)))
             self.vpred = tf.layers.dense(last_out, 1, name = 'final', kernel_initializer = U.normc_initializer(0.1))[:,
                          0]
 
@@ -61,7 +61,7 @@ class MlpPolicy(object):
             else:
                 pdparam = tf.layers.dense(last_out, pdtype.param_shape()[0], name = 'final',
                                           kernel_initializer = U.normc_initializer(0.1))
-        # pdparam = tf.clip_by_value(pdparam, -10.0, 10.0)
+        pdparam = tf.clip_by_value(pdparam, -10.0, 10.0)
         self.pd = pdtype.pdfromflat(pdparam)
 
         self.state_in = []
