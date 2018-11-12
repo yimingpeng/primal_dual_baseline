@@ -15,4 +15,4 @@
 bash
 export PATH=/home/yiming.peng/miniconda3/bin/:$PATH &
 source activate cmaes_baselines &
-python run_gym_ctrl.py --env MountainCarContinuous-v2 --seed $SLURM_ARRAY_TASK_ID
+python run_gym_ctrl.py --env MountainCarContinuous-v1 --seed $SLURM_ARRAY_TASK_ID
