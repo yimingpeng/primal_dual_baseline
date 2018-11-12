@@ -253,15 +253,15 @@ def learn(env,test_env, policy_fn, *,
         lastgaelam = 0
         for t in itertools.count():
             ac, vpred = pi.act(stochastic = True, ob = ob)
-            # origin_ac = ac
-            # ac = np.clip(ac, ac_space.low, ac_space.high)
+            origin_ac = ac
+            ac = np.clip(ac, ac_space.low, ac_space.high)
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
             if env.spec._env_name == "MountainCarContinuous":
                 rew = rew - np.abs(next_ob[0] - env.unwrapped.goal_position)
             # elif env.spec._env_name == "InvertedDoublePendulumBulletEnv":
             #     rew = max(min(rew, 1), -1)
-            # ac = origin_ac
+            ac = origin_ac
 
             # rew = np.clip(rew, -1., 1.)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
