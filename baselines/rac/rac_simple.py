@@ -257,8 +257,8 @@ def learn(env,test_env, policy_fn, *,
             # ac = np.clip(ac, ac_space.low, ac_space.high)
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
-            if env.spec._env_name == "MountainCarContinuous":
-                rew = rew - np.abs(next_ob[0] - env.unwrapped.goal_position)
+            # if env.spec._env_name == "MountainCarContinuous":
+            #     rew = rew - np.abs(next_ob[0] - env.unwrapped.goal_position)
             # elif env.spec._env_name == "InvertedDoublePendulumBulletEnv":
             #     rew = max(min(rew, 1), -1)
             # ac = origin_ac
