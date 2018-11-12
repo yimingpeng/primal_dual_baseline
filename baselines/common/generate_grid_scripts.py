@@ -14,8 +14,8 @@ __status__ = "Prototype"
 # Scripts for generating GCP startup scripts
 import os
 
-person = 'yimingpeng'
-#person = 'achen'
+# person = 'yimingpeng'
+person = 'achen'
 
 if person == 'achen':
     f = open("../../grid_scripts/aaron_template.sh")
@@ -33,8 +33,8 @@ algorithms = ["ars", "dual_nac_advantage", "dual_nac_fisher",
 #                    "InvertedPendulum", "InvertedPendulumSwingup", "Reacher",
 #                    "Walker2D"]
 bullet_problems = ["InvertedDoublePendulum",
-                   "InvertedPendulum", "InvertedPendulumSwingup"]
-gym_problems = ["MountainCarContinuous"]
+                   "InvertedPendulum", "InvertedPendulumSwingup", "Walker2D", "Reacher", "Hopper"]
+gym_problems = ["MountainCarContinuous", "LunarLanderContinuous", "BipedalWalker"]
 seeds = range(5)
 # Generate for Bullet problems
 for algorithm in algorithms:
@@ -88,7 +88,10 @@ for algorithm in algorithms:
                 if algorithm == "DDPG":
                     line = "python $pyName --env-id " + problem + "-v0" + " --seed $SGE_TASK_ID\n"
                 else:
-                    line = "python $pyName --env " + problem + "-v0" + " --seed $SGE_TASK_ID\n"
+                    if problem == "LunarLanderContinuous" or problem == "BipedalWalker":
+                        line = "python $pyName --env " + problem + "-v2" + " --seed $SGE_TASK_ID\n"
+                    else:
+                        line = "python $pyName --env " + problem + "-v0" + " --seed $SGE_TASK_ID\n"
             f1.write(line)
         f1.close()
         f.seek(0)
