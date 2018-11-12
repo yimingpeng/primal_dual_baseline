@@ -15,13 +15,19 @@ __status__ = "Prototype"
 import os
 
 f = open("../../hpc_scripts/template.sl")
-algorithms = ["ppo", "ppo_rac", "ppo_nac_fisher",
-              "ppo_nac_advantage_fisher", "ppo_nac_advantage",
-              "ppo_dual_rac", "ppo_dual_nac_fisher", "ppo_dual_nac_advantage"]
-bullet_problems = ["HalfCheetah", "Hopper", "InvertedDoublePendulum",
-                   "InvertedPendulum", "InvertedPendulumSwingup",
-                   "Walker2D"]
-gym_problems = ["LunarLanderContinuous", "BipedalWalker", "BipedalWalkerHardcore"]
+# algorithms = ["ppo", "ppo_rac", "ppo_nac_fisher",
+#               "ppo_nac_advantage_fisher", "ppo_nac_advantage",
+#               "ppo_dual_rac", "ppo_dual_nac_fisher", "ppo_dual_nac_advantage"]
+# bullet_problems = ["HalfCheetah", "Hopper", "InvertedDoublePendulum",
+#                    "InvertedPendulum", "InvertedPendulumSwingup",
+#                    "Walker2D"]
+# gym_problems = ["LunarLanderContinuous", "BipedalWalker", "BipedalWalkerHardcore"]
+algorithms = ["ars", "dual_nac_advantage", "dual_nac_fisher",
+              "dual_rac", "nac_advantage",
+              "nac_advantage_fisher", "nac_fisher", "ppo_linear", "rac"]
+bullet_problems = ["InvertedDoublePendulum",
+                   "InvertedPendulum", "InvertedPendulumSwingup", "Walker2D", "Hopper"]
+gym_problems = ["MountainCarContinuous", "LunarLanderContinuous", "BipedalWalker"]
 seeds = range(5)
 # Generate for Bullet problems
 for algorithm in algorithms:
@@ -77,7 +83,10 @@ for algorithm in algorithms:
                 if algorithm == "DDPG":
                     line = "python main.py --env-id " + problem + "-v2" + " --seed $SLURM_ARRAY_TASK_ID\n"
                 else:
-                    line = "python run_gym_ctrl.py --env " + problem + "-v2" + " --seed $SLURM_ARRAY_TASK_ID\n"
+                    if problem == "MountainCarContinuous":
+                        line = "python run_gym_ctrl.py --env " + problem + "-v2" + " --seed $SLURM_ARRAY_TASK_ID\n"
+                    else:
+                        line = "python run_gym_ctrl.py --env " + problem + "-v0" + " --seed $SLURM_ARRAY_TASK_ID\n"
             f1.write(line)
         f1.close()
         f.seek(0)

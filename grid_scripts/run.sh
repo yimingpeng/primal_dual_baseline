@@ -1,4 +1,3 @@
-qsub -t 1-15:1 ./ppo_linear/ppo_linear_Reacher.sh
 qsub -t 1-15:1 ./ppo_linear/ppo_linear_InvertedPendulumSwingup.sh
 qsub -t 1-15:1 ./ppo_linear/ppo_linear_Hopper.sh
 qsub -t 1-15:1 ./ppo_linear/ppo_linear_BipedalWalker.sh
