@@ -4,6 +4,8 @@ Helpers for scripts like run_atari.py.
 import os, inspect
 import pybullet
 
+from common.MountainCarWrapper import ReshapeRewardEnv
+
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(os.path.dirname(currentdir))
 os.sys.path.insert(0,parentdir)
@@ -77,6 +79,7 @@ def make_gym_control_env(env_id, seed):
     """
     set_global_seeds(seed)
     env = gym.make(env_id)
+    env = ReshapeRewardEnv(env)
     env = Monitor(env, logger.get_dir(), allow_early_resets=True)
     env.seed(seed)
     return env
