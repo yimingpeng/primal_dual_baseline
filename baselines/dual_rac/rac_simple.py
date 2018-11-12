@@ -222,9 +222,8 @@ def learn(env, policy_fn, *,
         # logger.log("********** Episode %i ************" % episodes_so_far)
 
         rac_alpha = optim_stepsize * cur_lrmult
-        rac_beta = optim_stepsize * cur_lrmult * 0.1
+        rac_beta = optim_stepsize * cur_lrmult * 0.5
 
-        #
         # print("rac_alpha=", rac_alpha)
         # print("rac_beta=", rac_beta)
         if timesteps_so_far == 0:
