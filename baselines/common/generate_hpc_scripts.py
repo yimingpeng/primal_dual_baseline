@@ -84,7 +84,7 @@ for algorithm in algorithms:
                     line = "python main.py --env-id " + problem + "-v2" + " --seed $SLURM_ARRAY_TASK_ID\n"
                 else:
                     if problem == "MountainCarContinuous":
-                        line = "python run_gym_ctrl.py --env " + problem + "-v1" + " --seed $SLURM_ARRAY_TASK_ID\n"
+                        line = "python run_gym_ctrl.py --env " + problem + "-v0" + " --seed $SLURM_ARRAY_TASK_ID\n"
                     else:
                         line = "python run_gym_ctrl.py --env " + problem + "-v2" + " --seed $SLURM_ARRAY_TASK_ID\n"
             f1.write(line)
