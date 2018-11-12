@@ -4,7 +4,6 @@ Helpers for scripts like run_atari.py.
 import os, inspect
 import pybullet
 
-from common.MountainCarWrapper import ReshapeRewardEnv
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(os.path.dirname(currentdir))
@@ -16,6 +15,7 @@ from baselines import logger
 from baselines.bench import Monitor
 from baselines.common import set_global_seeds
 from baselines.common.atari_wrappers import make_atari, wrap_deepmind
+from baselines.common.MountainCarWrapper import ReshapeRewardEnv
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 
 def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0):
