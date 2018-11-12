@@ -162,14 +162,14 @@ def pybullet_arg_parser():
     Create an argparse.ArgumentParser for run_pybullet.py.
     """
     parser = arg_parser()
-    # parser.add_argument('--env', help='environment ID', type=str,
-    #                     default="Walker2DBulletEnv-v0")
+    parser.add_argument('--env', help='environment ID', type=str,
+                        default="Walker2DBulletEnv-v0")
     # parser.add_argument('--env', help='environment ID', type=str,
     #                     default="InvertedDoublePendulumBulletEnv-v0")
     # parser.add_argument('--env', help='environment ID', type=str,
     #                     default="InvertedPendulumBulletEnv-v0")
-    parser.add_argument('--env', help='environment ID', type=str,
-                        default="InvertedPendulumSwingupBulletEnv-v0")
+    # parser.add_argument('--env', help='environment ID', type=str,
+    #                     default="InvertedPendulumSwingupBulletEnv-v0")
     # parser.add_argument('--env', help='environment ID', type=str,
     #                     default="HumanoidBulletEnv-v0")
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
