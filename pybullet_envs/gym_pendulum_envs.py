@@ -75,7 +75,7 @@ class InvertedDoublePendulumBulletEnv(MJCFBaseBulletEnv):
 		# v1, v2 = self.model.data.qvel[1:3]   TODO when this fixed https://github.com/bulletphysics/bullet3/issues/1040
 		#vel_penalty = 1e-3 * v1**2 + 5e-3 * v2**2
 		vel_penalty = 0
-		alive_bonus = 10
+		alive_bonus = 100
 		done = self.robot.pos_y + 0.3 <= 1
 		self.rewards = [float(alive_bonus), float(-dist_penalty), float(-vel_penalty)]
 		self.HUD(state, a, done)
