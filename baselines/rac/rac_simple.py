@@ -257,6 +257,8 @@ def learn(env,test_env, policy_fn, *,
             # ac = np.clip(ac, ac_space.low, ac_space.high)
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
+            if env.spec._env_name == "MountainCarContinuous":
+                rew = rew - np.abs(obs[0] - env.unwrapped.goal_position)
             # ac = origin_ac
 
             # rew = np.clip(rew, -1., 1.)
