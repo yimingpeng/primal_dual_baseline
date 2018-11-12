@@ -7,6 +7,7 @@ from baselines.common.mpi_adam import MpiAdam
 from baselines.common.mpi_moments import mpi_moments
 from mpi4py import MPI
 from collections import deque
+from baselines.common.normalizer import Normalizer
 
 
 def traj_segment_generator_eval(pi, env, horizon, stochastic):
@@ -51,7 +52,7 @@ def traj_segment_generator_eval(pi, env, horizon, stochastic):
         t += 1
 
 
-def traj_segment_generator(pi, env, horizon, stochastic):
+def traj_segment_generator(pi, env, horizon, stochastic, normalizer):
     global timesteps_so_far
     t = 0
     ac = env.action_space.sample()  # not used, just so we have the datatype
@@ -102,10 +103,16 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         prevacs[i] = prevac
         # ac = np.clip(ac, env.action_space.low, env.action_space.high)
         ob, rew, new, _ = env.step(ac)
+        if env.spec._env_name == "MountainCarContinuous":
+            rew = rew - np.abs(ob[0] - env.unwrapped.goal_position)
         # rew = np.clip(rew, -1., 1.)
+        original_rew = rew
+        normalizer.update(rew)
+        rew = normalizer.normalize(rew)
+        cur_ep_ret += original_rew
         rews[i] = rew
 
-        cur_ep_ret += rew
+        cur_ep_ret += original_rew
         cur_ep_len += 1
         timesteps_so_far += 1
         if new:
@@ -216,10 +223,11 @@ def learn(env, test_env, policy_fn, *,
     U.initialize()
     adam.sync()
 
+    normalizer = Normalizer(1)
     # Prepare for rollouts
     # ----------------------------------------
     eval_gen = traj_segment_generator_eval(pi, test_env, timesteps_per_actorbatch, stochastic = False)
-    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic = True)
+    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic = True, normalizer = normalizer)
 
     global timesteps_so_far, episodes_so_far, iters_so_far, \
         tstart, lenbuffer, rewbuffer, best_fitness
