@@ -9,6 +9,7 @@ from mpi4py import MPI
 from collections import deque
 import itertools
 import collections
+from baselines.common.normalizer import Normalizer
 
 def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
@@ -206,6 +207,7 @@ def learn(env, policy_fn, *,
 
     # Step learning, this loop now indicates episodes
     omega_t = np.zeros(get_pol_weights_num)
+    normalizer = Normalizer(1)
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -256,14 +258,16 @@ def learn(env, policy_fn, *,
             ac = np.clip(ac, ac_space.low, ac_space.high)
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
+            if env.spec._env_name == "MountainCarContinuous":
+                rew = rew - np.abs(next_ob[0] - env.unwrapped.goal_position)
             ac = origin_ac
 
             # rew = np.clip(rew, -1., 1.)
             # episode.append(Transition(ob=ob.reshape((1, ob.shape[0])), ac=ac.reshape((1, ac.shape[0])), reward=rew, next_ob=next_ob.reshape((1, ob.shape[0])), done=done))
 
             original_rew = rew
-            # normalizer.update(rew)
-            # rew = normalizer.normalize(rew)
+            normalizer.update(rew)
+            rew = normalizer.normalize(rew)
             cur_ep_ret += (original_rew - shift)
             cur_ep_len += 1
             timesteps_so_far += 1
