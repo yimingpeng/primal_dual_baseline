@@ -14,8 +14,8 @@ __status__ = "Prototype"
 # Scripts for generating GCP startup scripts
 import os
 
-# person = 'yimingpeng'
-person = 'achen'
+person = 'yimingpeng'
+# person = 'achen'
 
 if person == 'achen':
     f = open("../../grid_scripts/aaron_template.sh")
@@ -111,7 +111,7 @@ from functools import reduce
 all_list = []
 for algorithm in algorithms:
     all_files = glob.glob("../../grid_scripts/" + algorithm + "/*.sh")
-    all_list.extend(list(map(lambda x: "".join(["qsub -t 1-15:1 ./",x.split("/")[-2], "/", x.split("/")[-1]]), all_files)))
+    all_list.extend(list(map(lambda x: "".join(["qsub -t 1-5:1 ./",x.split("/")[-2], "/", x.split("/")[-1]]), all_files)))
 # new_list = reduce(lambda x,y:x.extend(y), all_list)
 command = reduce(lambda x,y: "".join([x, "\n", y]), all_list)
 with open("../../grid_scripts/run.sh", "w") as f3:
