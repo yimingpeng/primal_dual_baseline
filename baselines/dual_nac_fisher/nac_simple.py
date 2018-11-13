@@ -10,6 +10,8 @@ from collections import deque
 import itertools
 import collections
 
+from baselines.common.normalizer import Normalizer
+
 def traj_segment_generator(pi, env, horizon, stochastic):
     global timesteps_so_far
     t = 0
@@ -214,6 +216,7 @@ def learn(env, policy_fn, *,
 
     std = 1.0
     # Step learning, this loop now indicates episodes
+    normalizer = Normalizer(1)
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -266,6 +269,8 @@ def learn(env, policy_fn, *,
             ac = np.clip(ac, ac_space.low, ac_space.high)
             obs.append(ob)
             next_ob, rew, done, _ = env.step(ac)
+            if env.spec._env_name == "MountainCarContinuous":
+                rew = rew - np.abs(next_ob[0] - env.unwrapped.goal_position)
             ac = origin_ac
 
             # rew = np.clip(rew, -1., 1.)
@@ -274,8 +279,8 @@ def learn(env, policy_fn, *,
             # if rew < -1.0 or rew > 1.0:
             #     print("rew=", rew)
             original_rew = rew
-            # normalizer.update(rew)
-            # rew = normalizer.normalize(rew)
+            normalizer.update(rew)
+            rew = normalizer.normalize(rew)
             # rew = np.clip(rew, -1., 1.)
             # rew = 1. - (1. - rew) ** 0.4
             cur_ep_ret += (original_rew - shift)
