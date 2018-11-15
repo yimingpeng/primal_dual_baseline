@@ -107,8 +107,9 @@ def traj_segment_generator(pi, env, horizon, stochastic, normalizer):
             rew = rew - np.abs(ob[0] - env.unwrapped.goal_position)
         # rew = np.clip(rew, -1., 1.)
         original_rew = rew
-        normalizer.update(rew)
-        rew = normalizer.normalize(rew)
+        if env.spec._env_name != "InvertedPendulumBulletEnv":
+            normalizer.update(rew)
+            rew = normalizer.normalize(rew)
         cur_ep_ret += original_rew
         rews[i] = rew
 
