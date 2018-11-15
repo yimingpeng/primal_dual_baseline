@@ -33,7 +33,7 @@ algorithms = ["ars", "dual_nac_advantage", "dual_nac_fisher",
 #                    "InvertedPendulum", "InvertedPendulumSwingup", "Reacher",
 #                    "Walker2D"]
 bullet_problems = ["InvertedDoublePendulum",
-                   "InvertedPendulum", "InvertedPendulumSwingup", "Walker2D"]
+                   "InvertedPendulum", "InvertedPendulumSwingup"]
 gym_problems = ["MountainCarContinuous", "LunarLanderContinuous", "BipedalWalker"]
 seeds = range(5)
 # Generate for Bullet problems
