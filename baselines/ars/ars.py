@@ -31,6 +31,7 @@ import numpy as np
 import gym
 from gym import wrappers
 import pybullet_envs
+from baselines.common.normalizer import Normalizer
 
 # Setting the Hyper Parameters
 episodes_so_far = 0
@@ -64,7 +65,7 @@ class Hp():
 
 
 # observation filter
-class Normalizer():
+class Ob_Normalizer():
     def __init__(self, num_inputs):
         self.n = np.zeros(num_inputs)
         self.mean = np.zeros(num_inputs)
@@ -138,6 +139,7 @@ def train(env, policy, normalizer, hp):
     # print(rewbuffer)
     result_record()
     record = False
+    rw_normalizer = Normalizer(1)
     for episode in range(hp.main_loop_size):
         cur_lrmult = 1.0
         # cur_lrmult = max(1.0 - float(timesteps_so_far) / (0.5 * hp.max_timesteps), 1e-8)
@@ -162,7 +164,10 @@ def train(env, policy, normalizer, hp):
                 action = policy.positive_perturbation(state, deltas[k])
                 action = np.clip(action, env.action_space.low, env.action_space.high)
                 state, reward, done, _ = env.step(action)
-                reward = max(min(reward, 1), -1)
+                # reward = max(min(reward, 1), -1)
+                if env.spec._env_name != "InvertedPendulumBulletEnv":
+                    rw_normalizer.update(reward)
+                    reward = rw_normalizer.normalize(reward)
                 reward_positive[k] += reward
                 num_plays += 1
                 timesteps_so_far += 1
@@ -185,8 +190,12 @@ def train(env, policy, normalizer, hp):
                 normalizer.observe(state)
                 state = normalizer.normalize(state)
                 action = policy.negative_perturbation(state, deltas[k])
+                action = np.clip(action, env.action_space.low, env.action_space.high)
                 state, reward, done, _ = env.step(action)
-                reward = max(min(reward, 1), -1)
+                # reward = max(min(reward, 1), -1)
+                if env.spec._env_name != "InvertedPendulumBulletEnv":
+                    rw_normalizer.update(reward)
+                    reward = rw_normalizer.normalize(reward)
                 reward_negative[k] += reward
                 num_plays += 1
                 timesteps_so_far += 1
@@ -250,5 +259,5 @@ if __name__ == '__main__':
     num_inputs = env.observation_space.shape[0]
     num_outputs = env.action_space.shape[0]
     policy = Policy(num_inputs, num_outputs, hp)
-    normalizer = Normalizer(num_inputs)
+    normalizer = Ob_Normalizer(num_inputs)
     train(env, policy, normalizer, hp)

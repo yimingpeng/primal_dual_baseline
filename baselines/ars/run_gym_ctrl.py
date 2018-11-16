@@ -16,7 +16,7 @@ def train(env_id, num_timesteps, seed):
     from baselines.ars import ars
     main_loop_size = 1000
     horizon = 1000
-    step_size = 0.015
+    step_size = 0.005
     noise = 0.025
     hp = ars.Hp(main_loop_size, horizon, num_timesteps, step_size, noise)
     set_global_seeds(seed)
@@ -25,7 +25,7 @@ def train(env_id, num_timesteps, seed):
     num_inputs = env.observation_space.shape[0]
     num_outputs = env.action_space.shape[0]
     policy = ars.Policy(num_inputs, num_outputs, hp)
-    normalizer = ars.Normalizer(num_inputs)
+    normalizer = ars.Ob_Normalizer(num_inputs)
     ars.train(env, policy, normalizer, hp)
     env.close()
 
