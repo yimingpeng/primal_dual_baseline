@@ -4,7 +4,7 @@ experimentName="baselines"
 
 pyName="run_pybullet.py"
 
-cd $experimentName/dual_nac_fisher/
+cd ./$experimentName/dual_nac_fisher/
 
 for i in 1 2 3 4 5
 do

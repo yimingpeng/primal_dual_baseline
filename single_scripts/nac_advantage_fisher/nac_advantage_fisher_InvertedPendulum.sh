@@ -4,7 +4,7 @@ experimentName="baselines"
 
 pyName="run_pybullet.py"
 
-cd $experimentName/nac_advantage_fisher/
+cd ./$experimentName/nac_advantage_fisher/
 
 for i in 1 2 3 4 5
 do

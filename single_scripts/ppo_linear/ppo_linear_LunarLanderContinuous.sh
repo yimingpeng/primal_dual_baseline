@@ -4,7 +4,7 @@ experimentName="baselines"
 
 pyName="run_gym_ctrl.py"
 
-cd $experimentName/ppo_linear/
+cd ./$experimentName/ppo_linear/
 
 for i in 1 2 3 4 5
 do

@@ -51,7 +51,7 @@ for algorithm in algorithms:
                 if algorithm == "DDPG":
                     line = line.replace("run_pybullet.py", "main.py")
             if "$experimentName/ppo/" in line:
-                line = "cd $experimentName/" + algorithm.lower() + "/\n"
+                line = "cd ./$experimentName/" + algorithm.lower() + "/\n"
             if "BipedalWalker-v2" in line:
                 if algorithm == "DDPG":
                     line = "python $pyName --env-id " + problem + "BulletEnv-v0" + " --seed $SGE_TASK_ID\n"
@@ -83,7 +83,7 @@ for algorithm in algorithms:
                 else:
                     line = 'pyName="run_gym_ctrl.py"\n'
             if "$experimentName/ppo/" in line:
-                line = "cd $experimentName/" + algorithm.lower() + "/\n"
+                line = "cd ./$experimentName/" + algorithm.lower() + "/\n"
             if "BipedalWalker-v2" in line:
                 if algorithm == "DDPG":
                     line = "python $pyName --env-id " + problem + "-v0" + " --seed $SGE_TASK_ID\n"

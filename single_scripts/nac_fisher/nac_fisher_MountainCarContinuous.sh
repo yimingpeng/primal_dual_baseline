@@ -4,7 +4,7 @@ experimentName="baselines"
 
 pyName="run_gym_ctrl.py"
 
-cd $experimentName/nac_fisher/
+cd ./$experimentName/nac_fisher/
 
 for i in 1 2 3 4 5
 do
