@@ -6,5 +6,5 @@ cd $experimentName/ppo/
 
 for i in 1 2 3 4 5
 do
-python $pyName --env InvertedDoublePendulumBulletEnv-v0 --seed $SGE_TASK_ID
+  python $pyName --env BipedalWalker-v2 --seed $SGE_TASK_ID
 done

@@ -14,7 +14,7 @@ __status__ = "Prototype"
 # Scripts for generating GCP startup scripts
 import os
 
-f = open("../../hpc_scripts/template.sl")
+f = open("../../hpc_scripts/template.sh")
 # algorithms = ["ppo", "ppo_rac", "ppo_nac_fisher",
 #               "ppo_nac_advantage_fisher", "ppo_nac_advantage",
 #               "ppo_dual_rac", "ppo_dual_nac_fisher", "ppo_dual_nac_advantage"]
