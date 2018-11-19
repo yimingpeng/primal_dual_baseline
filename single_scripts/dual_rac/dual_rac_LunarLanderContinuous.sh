@@ -8,5 +8,5 @@ cd ../../$experimentName/dual_rac/
 
 for i in {0..5}
 do
-	( python $pyName --env LunarLanderContinuous-v2 --seed $SGE_TASK_ID  &)
+	( python $pyName --env LunarLanderContinuous-v2 --seed $i  &)
 done

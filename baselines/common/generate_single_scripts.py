@@ -54,9 +54,9 @@ for algorithm in algorithms:
                 line = "cd ../../$experimentName/" + algorithm.lower() + "/\n"
             if "BipedalWalker-v2" in line:
                 if algorithm == "DDPG":
-                    line = "\t( python $pyName --env-id " + problem + "BulletEnv-v0" + " --seed $SGE_TASK_ID  &)\n"
+                    line = "\t( python $pyName --env-id " + problem + "BulletEnv-v0" + " --seed $i  &)\n"
                 else:
-                    line = "\t( python $pyName --env " + problem + "BulletEnv-v0" + " --seed $SGE_TASK_ID  &)\n"
+                    line = "\t( python $pyName --env " + problem + "BulletEnv-v0" + " --seed $i  &)\n"
             f1.write(line)
         f1.close()
         f.seek(0)
@@ -86,12 +86,12 @@ for algorithm in algorithms:
                 line = "cd ../../$experimentName/" + algorithm.lower() + "/\n"
             if "BipedalWalker-v2" in line:
                 if algorithm == "DDPG":
-                    line = "\t( python $pyName --env-id " + problem + "-v0" + " --seed $SGE_TASK_ID  &)\n"
+                    line = "\t( python $pyName --env-id " + problem + "-v0" + " --seed $i  &)\n"
                 else:
                     if problem == "LunarLanderContinuous" or problem == "BipedalWalker":
-                        line = "\t( python $pyName --env " + problem + "-v2" + " --seed $SGE_TASK_ID  &)\n"
+                        line = "\t( python $pyName --env " + problem + "-v2" + " --seed $i  &)\n"
                     else:
-                        line = "\t( python $pyName --env " + problem + "-v0" + " --seed $SGE_TASK_ID  &)\n"
+                        line = "\t( python $pyName --env " + problem + "-v0" + " --seed $i  &)\n"
             f1.write(line)
         f1.close()
         f.seek(0)

@@ -8,5 +8,5 @@ cd ../../$experimentName/dual_nac_advantage/
 
 for i in {0..5}
 do
-	( python $pyName --env InvertedDoublePendulumBulletEnv-v0 --seed $SGE_TASK_ID  &)
+	( python $pyName --env InvertedDoublePendulumBulletEnv-v0 --seed $i  &)
 done

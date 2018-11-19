@@ -8,5 +8,5 @@ cd ../../$experimentName/nac_advantage_fisher/
 
 for i in {0..5}
 do
-	( python $pyName --env MountainCarContinuous-v0 --seed $SGE_TASK_ID  &)
+	( python $pyName --env MountainCarContinuous-v0 --seed $i  &)
 done
