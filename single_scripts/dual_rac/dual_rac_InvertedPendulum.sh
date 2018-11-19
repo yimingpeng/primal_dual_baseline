@@ -4,7 +4,7 @@ experimentName="baselines"
 
 pyName="run_pybullet.py"
 
-cd ./$experimentName/dual_rac/
+cd ../../$experimentName/dual_rac/
 
 for i in 1 2 3 4 5
 do
