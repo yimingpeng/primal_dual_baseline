@@ -39,7 +39,7 @@ seeds = range(5)
 # Generate for Bullet problems
 for algorithm in algorithms:
     for problem in bullet_problems:
-        directory = "../../grid_scripts/" + str(algorithm)
+        directory = "../../single_scripts/" + str(algorithm)
         if not os.path.exists(directory):
             os.makedirs(directory)
         f1 = open(directory + "/" + algorithm + "_" +
