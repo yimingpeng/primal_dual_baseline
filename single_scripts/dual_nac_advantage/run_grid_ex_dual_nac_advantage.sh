@@ -1,14 +1,10 @@
 #! /bin/bash
-dual_nac_advantage_HalfCheetah.sh
-dual_nac_advantage_Hopper.sh
-dual_nac_advantage_InvertedDoublePendulum.sh
-dual_nac_advantage_InvertedPendulum.sh
-dual_nac_advantage_InvertedPendulumSwingup.sh
-dual_nac_advantage_Reacher.sh
-dual_nac_advantage_Walker2D.sh
-dual_nac_advantage_BipedalWalker.sh
-dual_nac_advantage_BipedalWalkerHardcore.sh
-dual_nac_advantage_LunarLanderContinuous.sh
+bash dual_nac_advantage_MountainCarContinuous.sh
+bash dual_nac_advantage_InvertedDoublePendulum.sh
+bash dual_nac_advantage_InvertedPendulum.sh
+bash dual_nac_advantage_InvertedPendulumSwingup.sh
+bash dual_nac_advantage_BipedalWalker.sh
+bash dual_nac_advantage_LunarLanderContinuous.sh
 
 
 

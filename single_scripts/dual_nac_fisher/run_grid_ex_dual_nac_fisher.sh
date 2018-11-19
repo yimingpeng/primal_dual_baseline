@@ -1,14 +1,10 @@
 #! /bin/bash
-dual_nac_fisher_HalfCheetah.sh
-dual_nac_fisher_Hopper.sh
-dual_nac_fisher_InvertedDoublePendulum.sh
-dual_nac_fisher_InvertedPendulum.sh
-dual_nac_fisher_InvertedPendulumSwingup.sh
-dual_nac_fisher_Reacher.sh
-dual_nac_fisher_Walker2D.sh
-dual_nac_fisher_BipedalWalker.sh
-dual_nac_fisher_BipedalWalkerHardcore.sh
-dual_nac_fisher_LunarLanderContinuous.sh
+bash dual_nac_fisher_MountainCarContinuous.sh
+bash dual_nac_fisher_InvertedDoublePendulum.sh
+bash dual_nac_fisher_InvertedPendulum.sh
+bash dual_nac_fisher_InvertedPendulumSwingup.sh
+bash dual_nac_fisher_BipedalWalker.sh
+bash dual_nac_fisher_LunarLanderContinuous.sh
 
 
 
