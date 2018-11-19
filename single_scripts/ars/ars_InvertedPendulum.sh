@@ -6,8 +6,7 @@ pyName="run_pybullet.py"
 
 cd ../../$experimentName/ars/
 
-for i in 1 2 3 4 5
+for i in {1..5} ;
 do
-  echo "Looping ... i is set to $i"
-	python $pyName --env InvertedPendulumBulletEnv-v0 --seed $SGE_TASK_ID &
-done
+	( python $pyName --env InvertedPendulumBulletEnv-v0 --seed $SGE_TASK_ID  &)
+; done
