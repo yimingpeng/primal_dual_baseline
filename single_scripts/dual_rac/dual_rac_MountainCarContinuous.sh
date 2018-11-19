@@ -8,6 +8,6 @@ cd ../../$experimentName/dual_rac/
 
 for i in {0..5}
 do
-	( python $pyName --env MountainCarContinuous-v0 --seed $i &> $i.out)
+	( python $pyName --env MountainCarContinuous-v0 --seed $i &> MountainCarContinuous_"$i".out)
      echo "Complete the process $i"
 done
