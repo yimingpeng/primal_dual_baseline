@@ -9,5 +9,5 @@ cd ../../$experimentName/dual_nac_fisher/
 for i in 1 2 3 4 5
 do
   echo "Looping ... i is set to $i"
-python $pyName --env MountainCarContinuous-v0 --seed $SGE_TASK_ID
+	python $pyName --env MountainCarContinuous-v0 --seed $SGE_TASK_ID &
 done
