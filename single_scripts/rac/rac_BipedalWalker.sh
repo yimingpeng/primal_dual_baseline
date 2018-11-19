@@ -8,5 +8,6 @@ cd ../../$experimentName/rac/
 
 for i in {0..5}
 do
-	( python $pyName --env BipedalWalker-v2 --seed $i  &)
+	( python $pyName --env BipedalWalker-v2 --seed $i &> $i.out)
+     echo "Complete the process $i"
 done
