@@ -1,0 +1,16 @@
+#! /bin/bash
+nac_advantage_HalfCheetah.sh
+nac_advantage_Hopper.sh
+nac_advantage_InvertedDoublePendulum.sh
+nac_advantage_InvertedPendulum.sh
+nac_advantage_InvertedPendulumSwingup.sh
+nac_advantage_Reacher.sh
+nac_advantage_Walker2D.sh
+nac_advantage_BipedalWalker.sh
+nac_advantage_BipedalWalkerHardcore.sh
+nac_advantage_LunarLanderContinuous.sh
+
+
+
+
+

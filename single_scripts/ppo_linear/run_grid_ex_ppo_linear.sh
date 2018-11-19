@@ -1,0 +1,16 @@
+#! /bin/bash
+ppo_linear_HalfCheetah.sh
+ppo_linear_Hopper.sh
+ppo_linear_InvertedDoublePendulum.sh
+ppo_linear_InvertedPendulum.sh
+ppo_linear_InvertedPendulumSwingup.sh
+ppo_linear_Reacher.sh
+ppo_linear_Walker2D.sh
+ppo_linear_BipedalWalker.sh
+ppo_linear_BipedalWalkerHardcore.sh
+ppo_linear_LunarLanderContinuous.sh
+
+
+
+
+

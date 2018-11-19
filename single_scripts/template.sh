@@ -1,7 +1,9 @@
 #!/bin/bash
 
 experimentName="baselines"
+
 pyName="run_pybullet.py"
+
 cd $experimentName/ppo/
 
 for i in 1 2 3 4 5

@@ -50,8 +50,8 @@ for algorithm in algorithms:
             if 'pyName="run_pybullet.py"' in line:
                 if algorithm == "DDPG":
                     line = line.replace("run_pybullet.py", "main.py")
-            if "$experimentFolder/$experimentName/ppo/" in line:
-                line = "cd $experimentFolder/$experimentName/" + algorithm.lower() + "/\n"
+            if "$experimentName/ppo/" in line:
+                line = "cd $experimentName/" + algorithm.lower() + "/\n"
             if "BipedalWalker-v2" in line:
                 if algorithm == "DDPG":
                     line = "python $pyName --env-id " + problem + "BulletEnv-v0" + " --seed $SGE_TASK_ID\n"
@@ -60,12 +60,12 @@ for algorithm in algorithms:
             f1.write(line)
         f1.close()
         f.seek(0)
-    # f3 = open(directory + "/run_grid_ex_" + algorithm + ".sh", 'w')
-    # for line in f2:
-    #     if "ACKTR" in line:
-    #         line = line.replace("ACKTR", algorithm)
-    #     f3.write(line)
-    # f3.close()
+    f3 = open(directory + "/run_grid_ex_" + algorithm + ".sh", 'w')
+    for line in f2:
+        if "ACKTR" in line:
+            line = line.replace("ACKTR", algorithm)
+        f3.write(line)
+    f3.close()
     f2.seek(0)
 
 # Generate for gym control problems
@@ -81,9 +81,9 @@ for algorithm in algorithms:
                 if algorithm == "DDPG":
                     line = line.replace("run_pybullet.py", "main.py")
                 else:
-                    line = 'pyName="run_gym_ctrl.py"'
-            if "$experimentFolder/$experimentName/ppo/" in line:
-                line = "cd $experimentFolder/$experimentName/" + algorithm.lower() + "/\n"
+                    line = 'pyName="run_gym_ctrl.py"\n'
+            if "$experimentName/ppo/" in line:
+                line = "cd $experimentName/" + algorithm.lower() + "/\n"
             if "BipedalWalker-v2" in line:
                 if algorithm == "DDPG":
                     line = "python $pyName --env-id " + problem + "-v0" + " --seed $SGE_TASK_ID\n"
@@ -96,12 +96,12 @@ for algorithm in algorithms:
         f1.close()
         f.seek(0)
 
-    # f3 = open(directory + "/run_grid_ex_" + algorithm + ".sh", 'w')
-    # for line in f2:
-    #     if "ACKTR" in line:
-    #         line = line.replace("ACKTR", algorithm)
-    #     f3.write(line)
-    # f3.close()
+    f3 = open(directory + "/run_grid_ex_" + algorithm + ".sh", 'w')
+    for line in f2:
+        if "ACKTR" in line:
+            line = line.replace("ACKTR", algorithm)
+        f3.write(line)
+    f3.close()
     f2.seek(0)
 f.close()
 

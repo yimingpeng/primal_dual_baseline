@@ -1,0 +1,16 @@
+#! /bin/bash
+nac_fisher_HalfCheetah.sh
+nac_fisher_Hopper.sh
+nac_fisher_InvertedDoublePendulum.sh
+nac_fisher_InvertedPendulum.sh
+nac_fisher_InvertedPendulumSwingup.sh
+nac_fisher_Reacher.sh
+nac_fisher_Walker2D.sh
+nac_fisher_BipedalWalker.sh
+nac_fisher_BipedalWalkerHardcore.sh
+nac_fisher_LunarLanderContinuous.sh
+
+
+
+
+
