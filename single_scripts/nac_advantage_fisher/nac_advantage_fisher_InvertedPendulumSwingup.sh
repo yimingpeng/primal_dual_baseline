@@ -6,7 +6,7 @@ pyName="run_pybullet.py"
 
 cd ../../$experimentName/nac_advantage_fisher/
 
-for i in {1..5} ;
+for i in {1..5}
 do
 	( python $pyName --env InvertedPendulumSwingupBulletEnv-v0 --seed $SGE_TASK_ID  &)
-; done
+done
