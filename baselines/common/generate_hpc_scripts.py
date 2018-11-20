@@ -14,7 +14,7 @@ __status__ = "Prototype"
 # Scripts for generating GCP startup scripts
 import os
 
-f = open("../../hpc_scripts/template.sh")
+f = open("../../hpc_scripts/template.sl")
 # algorithms = ["ppo", "ppo_rac", "ppo_nac_fisher",
 #               "ppo_nac_advantage_fisher", "ppo_nac_advantage",
 #               "ppo_dual_rac", "ppo_dual_nac_fisher", "ppo_dual_nac_advantage"]
@@ -52,9 +52,9 @@ for algorithm in algorithms:
                                     "--error=" + algorithm.lower() + "_" + problem + "_")
             if "Walker2DBulletEnv-v0" in line:
                 if algorithm == "DDPG":
-                    line = "srun python main.py --env-id " + problem + "BulletEnv-v0" + " --seed $SLURM_ARRAY_TASK_ID\n"
+                    line = "python main.py --env-id " + problem + "BulletEnv-v0" + " --seed $SLURM_ARRAY_TASK_ID\n"
                 else:
-                    line = "srun python run_pybullet.py --env " + problem + "BulletEnv-v0" + " --seed $SLURM_ARRAY_TASK_ID\n"
+                    line = "python run_pybullet.py --env " + problem + "BulletEnv-v0" + " --seed $SLURM_ARRAY_TASK_ID\n"
             f1.write(line)
         f1.close()
         f.seek(0)

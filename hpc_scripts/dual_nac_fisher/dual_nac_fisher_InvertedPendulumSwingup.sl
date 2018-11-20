@@ -15,4 +15,4 @@
 bash
 export PATH=/home/yiming.peng/miniconda3/bin/:$PATH
 source activate cmaes_baselines
-srun python run_pybullet.py --env InvertedPendulumSwingupBulletEnv-v0 --seed $SLURM_ARRAY_TASK_ID
+python run_pybullet.py --env InvertedPendulumSwingupBulletEnv-v0 --seed $SLURM_ARRAY_TASK_ID
