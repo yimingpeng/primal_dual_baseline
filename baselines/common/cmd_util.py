@@ -77,8 +77,7 @@ def make_gym_control_env(env_id, seed):
     Added by Yiming (29/5/2018)
     Create a wrapped, monitored gym.Env for Simple Control Problems.
     """
-    import random
-    set_global_seeds(seed+random.randint(0, 2**32 - 1))
+    set_global_seeds(seed)
     env = gym.make(env_id)
     # env = ReshapeRewardEnv(env)
     env = Monitor(env, logger.get_dir(), allow_early_resets=True)
@@ -90,8 +89,7 @@ def make_pybullet_env(env_id, seed):
     Added by Yiming (29/5/2018)
     Create a wrapped, monitored gym.Env for MuJoCo.
     """
-    import random
-    set_global_seeds(seed+random.randint(0, 2**32 - 1))
+    set_global_seeds(seed)
     # pybullet.connect(None)
     env = gym.make(env_id)
     env = Monitor(env, logger.get_dir(),allow_early_resets=True)

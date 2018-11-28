@@ -39,6 +39,8 @@ def main():
     logger.configure(
                      format_strs=['stdout', 'log', 'csv'], log_suffix = "NAC_Fisher-"+args.env)
     logger.log("Algorithm: NAC_Fisher-"+args.env)
+    import random
+    args.seed += random.randint(0, 2**32 - 1)
     logger.log("Algorithm: SEED-"+str(args.seed))
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 

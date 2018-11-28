@@ -36,6 +36,8 @@ def main():
     args = gym_ctrl_arg_parser().parse_args()
     logger.configure(format_strs=['stdout', 'log', 'csv'], log_suffix = "Dual_NAC_Fisher-"+args.env)
     logger.log("Algorithm: Dual_NAC_Fisher-"+args.env)
+    import random
+    args.seed += random.randint(0, 2**32 - 1)
     logger.log("Algorithm: SEED-"+str(args.seed))
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 
