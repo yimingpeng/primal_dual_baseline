@@ -172,7 +172,7 @@ def learn(env, policy_fn, *,
 
     # Train V function
     vf_lossandgrad = U.function([ob, td_v_target, lrmult],
-                                vf_losses + [U.flatgrad(vf_loss, vf_var_list, 200.0)])
+                                vf_losses + [U.flatgrad(vf_loss, vf_var_list, 100.0)])
     vf_adam = MpiAdam(vf_var_list, epsilon = adam_epsilon)
 
     # vf_optimizer = tf.train.AdamOptimizer(learning_rate = lrmult, epsilon = adam_epsilon)
@@ -180,7 +180,7 @@ def learn(env, policy_fn, *,
 
     # Train Policy
     pol_lossandgrad = U.function([ob, ac, adv, lrmult, td_v_target],
-                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list, 200.0)])
+                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list, 100.0)])
     pol_adam = MpiAdam(pol_var_list, epsilon = adam_epsilon)
 
     # pol_optimizer = tf.train.AdamOptimizer(learning_rate = 0.1 * lrmult, epsilon = adam_epsilon)
@@ -239,7 +239,7 @@ def learn(env, policy_fn, *,
 
         # print(adapt_std(cur_lrmult))
         rac_alpha = optim_stepsize * cur_lrmult
-        rac_beta = optim_stepsize * cur_lrmult * 0.1
+        rac_beta = optim_stepsize * cur_lrmult * 0.01
         if timesteps_so_far == 0:
             # result_record()
             seg = seg_gen.__next__()
@@ -279,9 +279,9 @@ def learn(env, policy_fn, *,
             # if rew < -1.0 or rew > 1.0:
             #     print("rew=", rew)
             original_rew = rew
-            # if env.spec._env_name != "InvertedPendulumBulletEnv":
-            #     normalizer.update(rew)
-            #     rew = normalizer.normalize(rew)
+            if env.spec._env_name != "InvertedPendulumBulletEnv":
+                normalizer.update(rew)
+                rew = normalizer.normalize(rew)
             # rew = np.clip(rew, -1., 1.)
             # rew = 1. - (1. - rew) ** 0.4
             cur_ep_ret += (original_rew - shift)
