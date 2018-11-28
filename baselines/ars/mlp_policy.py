@@ -49,6 +49,7 @@ class MlpPolicy(object):
                 pdparam = tf.layers.dense(last_out, pdtype.param_shape()[0], name = 'final',
                                           kernel_initializer = U.normc_initializer(0.01))
 
+        pdparam = tf.clip_by_value(pdparam, -10.0, 10.0)
         self.pd = pdtype.pdfromflat(pdparam)
 
         self.state_in = []
