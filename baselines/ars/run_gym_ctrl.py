@@ -17,7 +17,7 @@ def train(env_id, num_timesteps, seed):
     main_loop_size = 1000
     horizon = 1000
     step_size = 0.005
-    noise = 0.025
+    noise = 0.05
     hp = ars.Hp(main_loop_size, horizon, num_timesteps, step_size, noise)
     set_global_seeds(seed)
     env = make_gym_control_env(env_id, seed)
@@ -33,6 +33,7 @@ def main():
     args = gym_ctrl_arg_parser().parse_args()
     logger.configure(format_strs=['stdout', 'log', 'csv'], log_suffix = "ARS-"+args.env)
     logger.log("Algorithm: ARS-"+args.env)
+    logger.log("Algorithm: SEED-"+args.seed)
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 
 if __name__ == '__main__':

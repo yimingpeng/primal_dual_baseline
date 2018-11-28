@@ -43,6 +43,7 @@ def main():
     logger.configure(
                      format_strs=['stdout', 'log', 'csv'], log_suffix = "Dual-NAC-Advantage-"+args.env)
     logger.log("Algorithm: Dual-NAC-Advantage-"+args.env)
+    logger.log("Algorithm: SEED-"+args.seed)
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 
 if __name__ == '__main__':
