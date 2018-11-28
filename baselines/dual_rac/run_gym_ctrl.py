@@ -36,6 +36,7 @@ def main():
     args = gym_ctrl_arg_parser().parse_args()
     logger.configure(format_strs=['stdout', 'log', 'csv'], log_suffix = "Dual_RAC-"+args.env)
     logger.log("Algorithm: Dual_RAC-"+args.env)
+    logger.log("Algorithm: SEED-"+str(args.seed))
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 
 if __name__ == '__main__':

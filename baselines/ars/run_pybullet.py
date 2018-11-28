@@ -40,7 +40,7 @@ def main():
     logger.configure(
         format_strs = ['stdout', 'log', 'csv'], log_suffix = "ARS-" + args.env)
     logger.log("Algorithm: ARS-"+args.env)
-    logger.log("Algorithm: SEED-"+args.seed)
+    logger.log("Algorithm: SEED-"+str(args.seed))
     train(args.env, num_timesteps = args.num_timesteps, seed = args.seed)
 
 
