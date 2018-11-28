@@ -34,7 +34,7 @@ algorithms = ["ars", "dual_nac_advantage", "dual_nac_fisher",
 #                    "Walker2D"]
 bullet_problems = ["InvertedDoublePendulum",
                    "InvertedPendulum", "InvertedPendulumSwingup"]
-gym_problems = ["MountainCarContinuous", "LunarLanderContinuous", "BipedalWalker"]
+gym_problems = ["MountainCarContinuous", "LunarLanderContinuous", "BipedalWalker", "Pendulum"]
 seeds = range(5)
 # Generate for Bullet problems
 for algorithm in algorithms:
