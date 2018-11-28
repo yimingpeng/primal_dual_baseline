@@ -14,8 +14,8 @@ __status__ = "Prototype"
 # Scripts for generating GCP startup scripts
 import os
 
-person = 'yimingpeng'
-# person = 'achen'
+# person = 'yimingpeng'
+person = 'achen'
 
 if person == 'achen':
     f = open("../../grid_scripts/aaron_template.sh")
@@ -50,7 +50,7 @@ for algorithm in algorithms:
             if 'pyName="run_pybullet.py"' in line:
                 if algorithm == "DDPG":
                     line = line.replace("run_pybullet.py", "main.py")
-            if "$experimentFolder/$experimentName/ppo/" in line:
+            if "$experimentFolder/$experimentName/ppo1/" in line:
                 line = "cd $experimentFolder/$experimentName/" + algorithm.lower() + "/\n"
             if "BipedalWalker-v2" in line:
                 if algorithm == "DDPG":
@@ -82,7 +82,7 @@ for algorithm in algorithms:
                     line = line.replace("run_pybullet.py", "main.py")
                 else:
                     line = 'pyName="run_gym_ctrl.py"'
-            if "$experimentFolder/$experimentName/ppo/" in line:
+            if "$experimentFolder/$experimentName/ppo1/" in line:
                 line = "cd $experimentFolder/$experimentName/" + algorithm.lower() + "/\n"
             if "BipedalWalker-v2" in line:
                 if algorithm == "DDPG":
