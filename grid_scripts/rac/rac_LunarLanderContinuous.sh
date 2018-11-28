@@ -77,7 +77,7 @@ export PATH=/vol/grid-solar/sgeusers/achen/miniconda3/bin/:$PATH
 source activate cmaes_baselines
 
 #Define path
-experimentFolder="cmaes_baselines"
+experimentFolder="primal_dual_baseline"
 experimentName="baselines"
 pyName="run_gym_ctrl.py"
 #
