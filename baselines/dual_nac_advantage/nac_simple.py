@@ -137,6 +137,9 @@ def learn(env, policy_fn, *,
 
     lrmult = tf.placeholder(name = 'lrmult', dtype = tf.float32,
                             shape = [])  # learning rate multiplier, updated with schedule
+
+    cur_mult = tf.placeholder(name = 'cur_lrmult', dtype = tf.float32,
+                            shape = [])  # learning rate multiplier, updated with schedule
     ob = U.get_placeholder_cached(name = "ob")
     ac = pi.pdtype.sample_placeholder([])
     adv = tf.placeholder(dtype = tf.float32, shape = [1, 1])
@@ -163,18 +166,17 @@ def learn(env, policy_fn, *,
 
     compatible_feature = U.flatgrad(pi.pd.neglogp(ac), pol_var_list)
 
-    norm = tf.maximum(50 * lrmult, 5)
     # Train V function
-    vf_lossandgrad = U.function([ob, td_v_target, lrmult],
-                                vf_losses + [U.flatgrad(vf_loss, vf_var_list, norm)])
+    vf_lossandgrad = U.function([ob, td_v_target, lrmult, cur_mult],
+                                vf_losses + [U.flatgrad(vf_loss, vf_var_list, 40)])
     vf_adam = MpiAdam(vf_var_list, epsilon = adam_epsilon)
 
     # vf_optimizer = tf.train.AdamOptimizer(learning_rate = lrmult, epsilon = adam_epsilon)
     # vf_train_op = vf_optimizer.minimize(vf_loss, vf_var_list)
 
     # Train Policy
-    pol_lossandgrad = U.function([ob, ac, adv, lrmult, td_v_target],
-                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list, norm)])
+    pol_lossandgrad = U.function([ob, ac, adv, lrmult, td_v_target, cur_mult],
+                                 pol_losses + [U.flatgrad(pol_loss, pol_var_list, 40)])
     pol_adam = MpiAdam(pol_var_list, epsilon = adam_epsilon)
 
     # pol_optimizer = tf.train.AdamOptimizer(learning_rate = 0.1 * lrmult, epsilon = adam_epsilon)
