@@ -89,7 +89,7 @@ cp -r /vol/grid-solar/sgeusers/yimingpeng/$experimentFolder .
 # cd into repo
 #
 echo ==GOING INTO EXPERIMENT DIRECTORY==
-cd $experimentFolder/$experimentName/ppo/
+cd $experimentFolder/$experimentName/nac_advantage_fisher/
 
 #
 # Run experiment
