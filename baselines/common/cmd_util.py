@@ -143,10 +143,10 @@ def gym_ctrl_arg_parser():
     parser = arg_parser()
     # parser.add_argument('--env', help='environment ID', type=str,
     #                      default="MountainCarContinuous-v0")
-    parser.add_argument('--env', help='environment ID', type=str,
-                        default="Pendulum-v0")
     # parser.add_argument('--env', help='environment ID', type=str,
-    #                         default="LunarLanderContinuous-v2")
+    #                     default="Pendulum-v0")
+    parser.add_argument('--env', help='environment ID', type=str,
+                            default="LunarLanderContinuous-v2")
     # parser.add_argument('--env', help='environment ID', type=str,
     #                      default="CartPole-v0")
     # parser.add_argument('--env', help='environment ID', type=str,

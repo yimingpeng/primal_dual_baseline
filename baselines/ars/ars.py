@@ -239,6 +239,7 @@ def evaluate(env, normalizer, policy):
         normalizer.observe(state)
         state = normalizer.normalize(state)
         action = policy.evaluate(state)
+        action = np.clip(action, env.action_space.low, env.action_space.high)
         state, reward, done, _ = env.step(action)
         reward_evaluation += reward
         num_plays += 1
