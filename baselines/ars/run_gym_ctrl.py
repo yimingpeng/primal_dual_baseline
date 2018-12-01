@@ -16,7 +16,7 @@ def train(env_id, num_timesteps, seed):
     from baselines.ars import ars
     main_loop_size = 1000
     horizon = 1000
-    step_size = 0.05
+    step_size = 0.03
     noise = 0.03
     hp = ars.Hp(main_loop_size, horizon, num_timesteps, step_size, noise)
     set_global_seeds(seed)
