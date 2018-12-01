@@ -273,7 +273,7 @@ def learn(env, policy_fn, *,
             # if rew < -1.0 or rew > 1.0:
             #     print("rew=", rew)
             original_rew = rew
-            if env.spec._env_name != "InvertedPendulumBulletEnv" or env.spec._env_name != "LunarLanderContinuous":
+            if env.spec._env_name != "InvertedPendulumBulletEnv":
                 normalizer.update(rew)
                 rew = normalizer.normalize(rew)
             # rew = np.clip(rew, -1., 1.)
